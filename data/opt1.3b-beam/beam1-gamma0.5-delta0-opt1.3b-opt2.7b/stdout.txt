@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=0.0, decoding_strategy='beam', completion_size=200, num_beams=1, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    × New poll shows Clinton over Trump by double-...  ...        117
+1    R&B superstar Beyonce left one Australian fan ...  ...         27
+2    Veterinary hospitals are not the first place m...  ...        610
+3    WHITE RIBBON: Member for Flinders Peter Treloa...  ...        147
+4    Republican Dave Jolly has defeated Democrat Al...  ...         18
+..                                                 ...  ...        ...
+495  The Pittsburgh Steelers continue to say things...  ...        422
+496  2.1K Shares Share Tweet Email Copy Link Copied...  ...        825
+497  U.S. Navy ships increasingly reliance on compu...  ...        414
+498  Ludacris may be hard at work to deliver an alb...  ...        210
+499  They say you can't put a price on your reputat...  ...        593
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               -0.592692     6.03555
+No                -0.592692     6.03555

@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.1, green_list_bias=2.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    The Madras high court bench in Madurai on Mond...  ...        189
+1    More than half of all UK employees - 52 per ce...  ...        772
+2    SAN FRANCISCO (Reuters) - A cyber security res...  ...        137
+3    Updated at 9:50 a.m. with more details.\nMicro...  ...         64
+4    NanoKnife Technology Targets Cancer at Sylvest...  ...        911
+..                                                 ...  ...        ...
+494  Amsterdam's Royal Concertgebouw Orchestra have...  ...        187
+495  Nearly 30 years after it first aired on PBS an...  ...        452
+496  An NBA game pitting the Cleveland Cavaliers ag...  ...        314
+497  The U.S. Federal Reserve meeting concluded tod...  ...        509
+498  By M.D. Kittle | Wisconsin Watchdog\nMADISON, ...  ...       1304
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                8.93084      12.257
+No                -0.255301     11.0374

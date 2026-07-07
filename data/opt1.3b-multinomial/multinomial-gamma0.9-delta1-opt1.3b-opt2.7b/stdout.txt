@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.9, green_list_bias=1.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Former young, talented and sexy actress Nicoll...  ...         80
+1    Samantha Markle didn't get face time with Megh...  ...        185
+2    WASHINGTON, D.C. — In 2009, state and local go...  ...        503
+3    Port Saint Lucie Police continue to search for...  ...        167
+4    Geoff Stults, Parker Young, Chris Lowell\nBoy ...  ...        922
+..                                                 ...  ...        ...
+495  Come August you can usually count on corn, tom...  ...       1144
+496  Canada Mortgage and Housing Corp. expects new ...  ...        488
+497  Babies born to mothers who immigrated to Ontar...  ...        341
+498  cay sofa alexander rehn from Alexander Rehn on...  ...        178
+499  [UPDATE: SI’s Peter King has refuted this repo...  ...        115
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                2.28688      11.1787
+No                 0.196619     11.0293

@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=0.1, decoding_strategy='beam', completion_size=200, num_beams=1, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    A committee interested in building a memorial ...  ...        574
+1    NEW YORK (AP) Aaron Nola was an All-Star in ev...  ...       1517
+2    Michele Frankel of Fort Lee, N.J., wants her f...  ...       1641
+3    Senator George Akume was the Senate Minority L...  ...       1843
+4    When the ball left Willie Tatum's bat, there w...  ...        386
+..                                                 ...  ...        ...
+495  Updated\nAt least two people have been killed ...  ...        867
+496  The deal comes after reports had linked the 26...  ...        286
+497  MESA, Ariz.  It wasnt smooth from the start,...  ...        488
+498  × Record warmth and windy conditions expected ...  ...        166
+499  LEAGUE CITY, Texas - A bee invasion on a vehic...  ...        217
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               0.0810485      6.1197
+No               -0.459244       6.1113

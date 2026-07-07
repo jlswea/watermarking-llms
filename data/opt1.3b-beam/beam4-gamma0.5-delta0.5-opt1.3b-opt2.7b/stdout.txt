@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=0.5, decoding_strategy='beam', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    It’s hard to imagine that as recently as 30 ye...  ...       1222
+1    International cricketer Shahadat Hossain and h...  ...        201
+2    ROBIN Wright was the woman tasked with shoulde...  ...        521
+3    Mike Coppola, Getty Images\nKanye West is a ha...  ...        135
+4    U.S. President Barack Obama answers questions ...  ...       1167
+..                                                 ...  ...        ...
+495  Facebook (FB) is once again looking to take on...  ...        654
+496                                                     ...          1
+497  The Florida State Seminoles released their sta...  ...        651
+498  MICHAEL LAUDRUP has sent a message to the rest...  ...         70
+499  The Pittsburgh Pirates fell behind in the race...  ...        440
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                1.46664      5.87647
+No                -0.486704     5.85367

@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=10.0, decoding_strategy='beam', completion_size=200, num_beams=1, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    TUCSON (CN) – A former state lawmaker sued top...  ...        566
+1    TERRIFIED of an asteroid hitting Earth and wip...  ...        433
+2    Malaysia's newly appointed Attorney-General To...  ...        949
+3    That we’re all hopelessly desensitized to movi...  ...        516
+4    After Great Lakes MDF in Lackawanna closed ear...  ...        147
+..                                                 ...  ...        ...
+495  ISTANBUL: Turkish police rescued 57 Pakistani ...  ...         44
+496  EXCLUSIVE DC Preview: Secret Six #1\nSecret Si...  ...        437
+497  Shiv Sena on Saturday took pot-shots at Mahara...  ...        319
+498  This is music to the ears of the Brexit crowd:...  ...        276
+499  OTTAWA\nApril 5, 2013\nEve Adams\nAustralia\n/...  ...        230
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               14.0305       6.92534
+No                -0.734505     5.98791

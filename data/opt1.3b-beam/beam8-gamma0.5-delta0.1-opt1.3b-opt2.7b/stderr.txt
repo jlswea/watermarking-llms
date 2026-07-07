@@ -1,0 +1,59 @@
+bash: cannot set terminal process group (-1): Inappropriate ioctl for device
+bash: no job control in this shell
+Traceback (most recent call last):
+  File "/home/USER/watermarking-llms/src/wllm.py", line 170, in <module>
+    main(args)
+  File "/home/USER/watermarking-llms/src/wllm.py", line 159, in main
+    experiment.compare(args)
+  File "/home/USER/watermarking-llms/src/experiment.py", line 69, in compare
+    text = pipeline.generate(prompt, None)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/watermarking-llms/src/pipeline.py", line 123, in generate
+    out_sequence = model.generate(token_tensor, config)[0]
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/transformers/generation/utils.py", line 1675, in generate
+    return self.beam_search(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/transformers/generation/utils.py", line 3014, in beam_search
+    outputs = self(
+              ^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/transformers/models/opt/modeling_opt.py", line 944, in forward
+    outputs = self.model.decoder(
+              ^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/transformers/models/opt/modeling_opt.py", line 710, in forward
+    layer_outputs = decoder_layer(
+                    ^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/transformers/models/opt/modeling_opt.py", line 330, in forward
+    hidden_states, self_attn_weights, present_key_value = self.self_attn(
+                                                          ^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/USER/.conda/envs/cuWLLM/lib/python3.11/site-packages/transformers/models/opt/modeling_opt.py", line 188, in forward
+    value_states = torch.cat([past_key_value[1], value_states], dim=2)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 58.00 MiB. GPU 0 has a total capacty of 10.91 GiB of which 48.12 MiB is free. Including non-PyTorch memory, this process has 10.86 GiB memory in use. Of the allocated memory 9.98 GiB is allocated by PyTorch, and 309.75 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF

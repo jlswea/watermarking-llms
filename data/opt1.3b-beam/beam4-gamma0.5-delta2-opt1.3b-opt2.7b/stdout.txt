@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=2.0, decoding_strategy='beam', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    NEW YORK (Reuters) - BMC Software Inc is explo...  ...        109
+1    Share Tweet Email Copy Link Copied\nOriginal W...  ...        379
+2    A California state senator was arrested Wednes...  ...        545
+3    It’s the black and white bars accompanied by a...  ...        889
+4    Coating is your ‘shingle’ best roofing option\...  ...        413
+..                                                 ...  ...        ...
+495  MANHATTAN (CN) – Hip-hop promoter Tyrone Gilli...  ...        275
+496  MOTORISTS on Orkney have seen the cost of car ...  ...        629
+497  OLYMPIC 2012 long-jump legend Greg Rutherford ...  ...        575
+498  Meghan Markle stuns in Self-Portrait dress at ...  ...        123
+499  One of my favorite phrases is, "You've got to ...  ...        301
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                7.86167      6.38916
+No                -0.500633     5.85275

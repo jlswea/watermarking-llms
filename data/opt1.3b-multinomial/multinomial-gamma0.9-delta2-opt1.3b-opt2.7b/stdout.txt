@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.9, green_list_bias=2.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    CLEVELAND — Something is seriously wrong with ...  ...        724
+1    Four-time Grammy winner Sam Smith will release...  ...        113
+2    Four-division world champion and surefire firs...  ...        595
+3    BERLIN — A senior German official has warned t...  ...        465
+4    In a summer crowded with superhero blockbuster...  ...        959
+..                                                 ...  ...        ...
+493  Hall of Fame offensive tackle Bob St. Clair, a...  ...        272
+494  The juxtaposition of moments in time, such as ...  ...        973
+495  NAIROBI, July 25 (Reuters) - Canadian explorer...  ...        288
+496  After trailing by eight with 8:33 to go, Color...  ...        325
+497  The last time I wrote about the U.S. yield cur...  ...        333
+
+[498 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                3.27398      11.176
+No                 0.215599     10.9958

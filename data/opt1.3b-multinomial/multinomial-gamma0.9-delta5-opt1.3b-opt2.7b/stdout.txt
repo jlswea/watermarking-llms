@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.9, green_list_bias=5.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    By KEVIN FREKING\nWASHINGTON (AP) — The chairm...  ...        491
+1    Once again Android device owners have been lef...  ...        286
+2    Late night TV has had different formats, hosts...  ...        707
+3    Posted Wednesday, June 29, 2016 9:58 am\nHealt...  ...        123
+4    The rise of the “values voter” is one of the b...  ...        378
+..                                                 ...  ...        ...
+495  The dryer door slams.\nMe: Whose in the laundr...  ...       1204
+496  Lynne Spears goes for a fast buck by revealing...  ...        282
+497  To the Editor:\nI just completed the 2007-09 t...  ...        368
+498  MILWAUKEE -- The St. Louis Cardinals found out...  ...        901
+499  II-VI (Nasdaq: IIVI) carries $127.7 million of...  ...        544
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                 4.32839     11.7175
+No                  0.2391      10.969

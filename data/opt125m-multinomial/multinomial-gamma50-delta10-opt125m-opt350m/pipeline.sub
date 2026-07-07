@@ -1,0 +1,7 @@
+executable              = /bin/bash
+arguments                = -i /home/USER/watermarking-llms/conda-activate.sh cuWLLM /home/USER/watermarking-llms/wllm-pipeline.py -s 500 -v 2 -d cuda --green-list-bias 10 --green-list-size 0.5 --decoding-strategy multinomial --in-data /home/USER/watermarking-llms/data/multinomial-gamma50-delta10-opt125m-opt350m/realnews-sample.jsonl --out-data /home/USER/watermarking-llms/data/multinomial-gamma50-delta10-opt125m-opt350m/archive.jsonl
+log                     = log.txt
+output                  = stdout.txt
+error                   = stderr.txt
+request_gpus            = 1
+queue

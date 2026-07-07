@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=0.0, decoding_strategy='beam', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Tony Thomas popped out of his seat immediately...  ...        590
+1    Most fans still have to wait another two weeks...  ...       1726
+2    Good morning!\nPrime Minister Justin Trudeau i...  ...        701
+3    The chronically awkward 'Between Two Ferns' se...  ...         41
+4    Fears of a sharper slowdown, coupled with low ...  ...        404
+..                                                 ...  ...        ...
+494  Former co-star had no idea the actor was ill\n...  ...        165
+495  Every now and then, I think back to the millio...  ...        577
+496  The 'Born This Way' singer is preparing for he...  ...         36
+497  Police Officer Michele Gigante said the corone...  ...         59
+498  U.S. actor and cast member Denzel Washington a...  ...        522
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                -0.40374     5.76635
+No                 -0.40374     5.76635

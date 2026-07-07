@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.75, green_list_bias=1.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    RIVERSIDE â" Eddie Orozco was not quite himse...  ...        481
+1    Monrovia — An economics professor at the Unive...  ...        845
+2    Howard the Duck #1 Credit: Marvel Comics\nHowa...  ...       1243
+3    Days from now, new college freshmen will unloa...  ...        664
+4    AEA Investors LP has signed an agreement to ac...  ...        302
+..                                                 ...  ...        ...
+494  Official confirmation that the Parliament of S...  ...        137
+495  Executive Summary\nAcross the West, apprehensi...  ...         86
+496  Critics of the Trump administration action say...  ...        964
+497  In round two which is The Judges Choice – the ...  ...        153
+498  Jeri Vargas put her elderly mother on the Do N...  ...        647
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                2.65452      11.3908
+No                -0.709483     11.1116

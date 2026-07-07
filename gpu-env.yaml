@@ -1,0 +1,12 @@
+name: cuWLLM
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - torchaudio
+  - pytorch-cuda=11.8
+  - torchvision
+  - pytorch
+  - transformers
+  - tabulate
+  - accelerate

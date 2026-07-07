@@ -1,0 +1,13 @@
+executable              = /bin/bash
+arguments               = -i /home/USER/watermarking-llms/conda-activate.sh cuWLLM /home/USER/watermarking-llms/src/wllm.py compare --from-config 
+log                     = log.txt
+output                  = stdout.txt
+error                   = stderr.txt
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+initialdir              = $(directory)
+transfer_input_files    = config.ini, realnews-sample.jsonl
+request_gpus            = 2
+request_memory          = 24000
+environment             = "PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512"
+queue directory matching beam1-gamma0.5-delta10*

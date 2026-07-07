@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.75, green_list_bias=5.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Everyone was supposed to get excited about the...  ...         68
+1    DRESDEN, Germany (Reuters) - German police are...  ...        326
+2    ST. LOUIS (AP) A little more than a year after...  ...        943
+3    If you’re looking at a career in coding, it ca...  ...        967
+4    We have had another good week of ice developme...  ...        429
+..                                                 ...  ...        ...
+495  … Guyanese soccer star signs MLS deal, creates...  ...       1550
+496  EXCLUSIVE\n"The Amazing Spider-Man" villain Rh...  ...        424
+497  While not in the path of totality, I found mys...  ...       1309
+498  ESPN reported Thursday that police were invest...  ...        253
+499  A Zoom Ziplines employee explains the basics o...  ...       1027
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                7.30611      13.9085
+No                -0.691866     11.5593

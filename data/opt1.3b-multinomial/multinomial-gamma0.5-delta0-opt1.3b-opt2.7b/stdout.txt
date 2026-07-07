@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=0.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Joseph Belmonte sustained 'catastrophic injuri...  ...        438
+1    The show’s fans flocked to Dobrev’s latest pos...  ...        376
+2    061110_pmpics_wilmervalderama Wilmer Valderram...  ...       1843
+3    Hyderabad-based hospital Krishna Institute of ...  ...        335
+4    Research In Motion Ltd. and its new CEO, Thors...  ...        380
+..                                                 ...  ...        ...
+494  Between them, the 1997 Daily Press male and fe...  ...        892
+495  Have you ever heard of a supposedly "pro Israe...  ...        570
+496  Walt Disney (DIS) might try to play hardball i...  ...        373
+497  Children’s Academy’s (Malad) 0-6 drubbing at t...  ...        391
+498  Former French nuclear reactor maker head Anne ...  ...        889
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               -0.274613     10.9589
+No                -0.237106     11.1678

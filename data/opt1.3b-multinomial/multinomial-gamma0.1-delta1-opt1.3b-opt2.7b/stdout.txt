@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.1, green_list_bias=1.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    John Krasinski, one of the stars of NBC's "The...  ...         42
+1    NEW YORK, Aug 17 (Reuters) - Microsoft Corp (M...  ...        166
+2    A fishing boat navigates past icebergs that br...  ...        240
+3    Verizon—which challenged the FCC's 2010 Open I...  ...        208
+4    (The following statement was released by the r...  ...       1408
+..                                                 ...  ...        ...
+494  The humanitarian bombers are back and they’re ...  ...       1218
+495  Searching questions find no hint of a revenge ...  ...        809
+496  NEW YORK (JTA) — In allowing U.S. representati...  ...       1531
+497  Despite the media’s gushing over support for P...  ...        142
+498  LONDON (Reuters) - French politician Emmanuel ...  ...        482
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                  3.2238     11.2554
+No                  -0.2616     11.0799

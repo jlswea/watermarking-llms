@@ -1,0 +1,10 @@
+name: wllm
+channels:
+  - conda-forge
+dependencies:
+  - transformers
+  - python=3.11
+  - pytorch
+  - tabulate
+  - nltk
+  - accelerate

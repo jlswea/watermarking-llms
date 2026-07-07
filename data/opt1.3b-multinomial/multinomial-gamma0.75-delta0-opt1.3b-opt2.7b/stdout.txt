@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.75, green_list_bias=0.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    WASHINGTON -- If the Washington Capitals find ...  ...        592
+1    via Soap Opera Network:\nMarch 11-15, 2013\nNO...  ...        236
+2    Richie Farmer has gotten his wish; he will not...  ...        319
+3    Medical marijuana clinics in Los Angeles must ...  ...        246
+4    Now, who knew?!? Bernanke, speaking to an FDIC...  ...         92
+..                                                 ...  ...        ...
+494  Microsoft officially confirmed its product lin...  ...         19
+495  When I became a juvenile judge in our Unified ...  ...       1086
+496  NEW YORK (Reuters) - Sterling fell on Monday n...  ...        500
+497  She has slimmed down incredibly thanks to bein...  ...        458
+498  Roger Moore, best known for his film portrayal...  ...         34
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               -0.743494     11.361
+No                -0.783944     11.4553

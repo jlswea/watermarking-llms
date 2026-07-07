@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=10.0, decoding_strategy='beam', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    By Will Bigham\nStaff Writer\nCLAREMONT – The ...  ...        292
+1    Changed her bio to say 'I am a UK glamour mode...  ...        379
+2    Mourners for Kate Spade gather outside Our Lad...  ...        472
+3    Jack in the Box is considering swapping some c...  ...        527
+4    It has taken me about two years to fully under...  ...       1843
+..                                                 ...  ...        ...
+492  Sue Kruczek, of Guilford, Connecticut, holds t...  ...       1010
+493  'Foremost, I'm a musician' says Rowntree\nBlur...  ...         72
+494  \nPhoto credit: EyesWideOpen/Getty Images\nThe...  ...        389
+495  LA CRESCENTA – A woman was found shot to death...  ...         45
+496  There's a reason why more people haven't seen ...  ...         54
+
+[497 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               14.026        6.99665
+No                -0.471545     5.60268

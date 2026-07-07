@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=10.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    SAN FRANCISCO — Twitter’s 200 million active u...  ...        147
+1    TREYARCH is releasing the newest update to Cal...  ...        208
+2    Team of the Week: City stars combine, bowlers ...  ...        974
+3    There's a new rumor that the U.S. government m...  ...        389
+4    To stand outside in the driveway of 2936 E. Ch...  ...       1280
+..                                                 ...  ...        ...
+492  NEW YORK The consumer banking website of JPMor...  ...        168
+493  KABUL, Afghanistan - Seconds before he was sho...  ...        504
+494  9 Gallery: Grand Rapids Jazz Fest at Rosa Park...  ...        492
+495  What led to Dr Dean Lorich a prominent Manhatt...  ...        693
+496  A campaign to have Winnipeg host the Davis Cup...  ...         44
+
+[497 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               14.0809       18.15
+No                -0.289712     11.2727

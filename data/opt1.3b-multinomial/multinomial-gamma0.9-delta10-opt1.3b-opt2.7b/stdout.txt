@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.9, green_list_bias=10.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    With his second animated feature film, Boy & T...  ...       1843
+1    \n(CN) – Roger Clemens can’t sue his former tr...  ...        252
+2    Former Twitter executive says company’s ‘fatal...  ...       1079
+3    A century on, the Suffragettes remain exemplar...  ...        401
+4    Photo: EMMANUEL DUNAND/AFP/Getty Images\nThree...  ...        322
+..                                                 ...  ...        ...
+495  The body of sports journalists in Lagos have s...  ...        296
+496  A group of eight Democratic lawmakers includin...  ...        402
+497  IPCC says now is not the time to pass judgment...  ...       1135
+498  Free antivirus apps published on Google's Andr...  ...        389
+499  McD's Mushroom Swiss burger\nThe Sweet Burger,...  ...       1442
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                 4.70746     12.2671
+No                  0.16321     11.1275

@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=0.5, decoding_strategy='beam', completion_size=200, num_beams=1, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    13 years ago almost to the day Manchester City...  ...        694
+1    Any indiscriminate attack on civilians in Beng...  ...        330
+2    Share:\nHAVANA - Moving to reduce dependence o...  ...        534
+3    HSBC paid 204 of its staff more than £1m in 20...  ...        996
+4    Ian Rogers, the head of Apple's (NASDAQ:AAPL) ...  ...        772
+..                                                 ...  ...        ...
+494  (Reuters) - The U.S. Treasury needs to develop...  ...        492
+495  UPDATED, with WGA West statement at bottom: Wi...  ...        597
+496  By Elizabeth Adegbesan\nThe Federal Inland Rev...  ...        355
+497  Manchester United's midfield is labouring at p...  ...        151
+498  Sex columnist Dan Savage launched a campaign l...  ...        146
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                2.10362      6.07128
+No                -0.596954     5.97916

@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.75, green_list_bias=10.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Thomas Hunter Middle School has submitted the ...  ...        480
+1    Thirty years later, Canada’s sexual assault la...  ...        822
+2    A top official for the city of Denver may soon...  ...        183
+3    by: Takahiro Takiguchi | Stripes Okinawa | Oct...  ...        599
+4    TORONTO – Sitting on one’s butt for a major pa...  ...       1056
+..                                                 ...  ...        ...
+495  PHOTO GALLERIES Zimbabwe to Michigan: Dogs fro...  ...         63
+496  Tyra Banks says she never meant to gush over a...  ...        442
+497  Review of American Gods by Neil Gaiman\nLike p...  ...       1557
+498  Whew, the baseball season sure jumps on you fa...  ...        811
+499  For Brits living abroad, one of the perennial ...  ...        433
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                8.16179       14.747
+No                -0.697938      11.326

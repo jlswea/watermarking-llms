@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.1, green_list_bias=10.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Breaking News National\nNational\nAAP\nAustral...  ...        100
+1    Rick Perry’s decision Wednesday to remain in t...  ...        520
+2    Updated\nThe Red Queen, Mad Hatter and a troop...  ...        350
+3    Initial autopsy findings from the body of a Pa...  ...        346
+4    NEW YORK – A New York woman is accused of hold...  ...         65
+..                                                 ...  ...        ...
+493  Edward Cardinal Egan convened a solemn meeting...  ...        707
+494  Arts & Culture\nHalakhic Striptease: Avi Neshe...  ...       1798
+495  Overall aim, apart from sending a message to A...  ...       1002
+496  Oxford Properties has started demolition on a ...  ...        742
+497  There are increasing reports across Fayette Co...  ...        754
+
+[498 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               41.1956       30.7579
+No                -0.265109     11.1055

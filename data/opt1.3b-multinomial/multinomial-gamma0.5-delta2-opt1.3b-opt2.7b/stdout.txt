@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=2.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    An Australian cattle farmer who snapped his ne...  ...        239
+1    She was assured her ‘micropig’ would grow no t...  ...        393
+2    The drama surrounding a petition seeking to ha...  ...        909
+3    School students are using their translation sk...  ...        119
+4    Washington Redskins rookie running back Derriu...  ...        204
+..                                                 ...  ...        ...
+493  MUNICH — John Demjanjuk sat in a wheelchair wr...  ...        174
+494  COLUMBUS (WCMH) — Alongside a display of plane...  ...        479
+495  Hawker Beechcraft has obtained its final type ...  ...         82
+496  Sometimes persistence pays off. Email by email...  ...        111
+497  This delicious beast has over 600 calories (Pi...  ...         50
+
+[498 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                7.7262       12.362
+No                -0.139649     11.1033

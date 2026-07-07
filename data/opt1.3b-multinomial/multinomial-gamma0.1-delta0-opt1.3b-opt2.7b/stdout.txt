@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.1, green_list_bias=0.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Sam Smith reportedly has a new man in his life...  ...        202
+1    Beyond integrating Lopez into a series of bran...  ...         97
+2    I get fairly regular emails from the "corporat...  ...        221
+3    via CBS press release:\nCBS.COM REPORTS RECORD...  ...        764
+4    NEW YORK/WASHINGTON - The first major winter s...  ...        437
+..                                                 ...  ...        ...
+494  (Page 2 of 2)\nwith other pharmaceutical compa...  ...        111
+495  As a boy, I wasn't much of a joiner. Although ...  ...        669
+496  \nYour tax bill is divided into three parts --...  ...       1843
+497  TORONTO – The Toronto stock market closed shar...  ...        581
+498  Following the arrest of an 18-year-old Baltic ...  ...        276
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               -0.279011     10.9347
+No                -0.302918     11.0575

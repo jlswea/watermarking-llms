@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=5.0, decoding_strategy='beam', completion_size=200, num_beams=1, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Sinclair Broadcast Group Inc. announced Tuesda...  ...        115
+1    LOS ANGELES — Lester Holt is carrying the weig...  ...        850
+2    DAVID Beckham has returned to social media aft...  ...        692
+3    Creamy wintry soup can have a lot of calories,...  ...        201
+4    AutoNation, Inc. (NYSE:AN) Director David B. E...  ...        787
+..                                                 ...  ...        ...
+492  Second Hinterlands by designers Natalya Egon a...  ...         52
+493  TORONTO — The ringleader of the Toronto 18 ter...  ...        242
+494  A total of 650,000 civilian employees are now ...  ...        531
+495  Mr. Rosinsky said his wife, Rose, loved the Sh...  ...        559
+496  Reuters\nPARIS: In a bright white room in a bu...  ...        516
+
+[497 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                12.2645      6.67258
+No                 -0.73641     5.927

@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=5.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    I believe when I crossed the stage and receive...  ...       1123
+1    HBO’s critically acclaimed tech-world satire S...  ...        809
+2    A 42-year-old actor who claimed she lost out o...  ...        341
+3    Hours before kicking off a two-night residency...  ...         59
+4    Goodbye, A-Treat. Birthday parties and barbecu...  ...       1220
+..                                                 ...  ...        ...
+495  Every year, more than 100 billion gallons of w...  ...       1225
+496  Baz Luhrmann‘s films have become increasingly ...  ...         81
+497  So you love Apple. Or you know someone who lov...  ...        159
+498  The very nature of the EP lends itself more to...  ...        157
+499  JESSE LINGARD has revealed the conversations h...  ...        122
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               12.5689       16.1261
+No                -0.284844     11.2448

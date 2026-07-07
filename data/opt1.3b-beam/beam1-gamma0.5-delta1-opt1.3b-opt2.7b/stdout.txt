@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=1.0, decoding_strategy='beam', completion_size=200, num_beams=1, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Hiring a new coach is sort of like announcing ...  ...        861
+1    You only have a few hours left if you want an ...  ...        120
+2    SAN FRANCISCO (Reuters) - Intel Corp’s weak ou...  ...        759
+3    David Cameron flies home to deal with a massiv...  ...       1114
+4    *** = Recommended shows\nOn sale 10 a.m. Frida...  ...        398
+..                                                 ...  ...        ...
+494  Emma Sadowski\nTHE ADMINISTRATORS of Lehman Br...  ...        285
+495  COLUMBIA - The town of Ridgeland's new traffic...  ...        584
+496  When Islamic State jihadists seized the Crusad...  ...       1673
+497  Baltimore police are investigating four homici...  ...        640
+498  The Supreme Court will hear oral argument on W...  ...       1276
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                4.51151      6.0297
+No                -0.617212     5.89103

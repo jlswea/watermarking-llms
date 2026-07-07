@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=2.0, decoding_strategy='beam', completion_size=200, num_beams=1, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Emerald-green tea gardens, breathtaking hills ...  ...       1480
+1    Shiloh Jolie-Pitt's adorable tomboy look is ba...  ...        169
+2    KNOXVILLE, Tenn.\nNov. 2, 2016\nSan Jose, Cali...  ...        117
+3    Joshua Holmes, 35, (pictured) had escaped from...  ...        468
+4    Crown Prince Mohammed bin Naif has had a force...  ...        699
+..                                                 ...  ...        ...
+494  Mighty River Power's share of electricity sale...  ...        470
+495  × New study says teens are ditching Facebook\n...  ...        240
+496  A professor of Supply Chain Management at Ariz...  ...        625
+497  While some people were not happy about Chris B...  ...         90
+498  Major League Baseball just added the ability t...  ...         67
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                8.08109      6.20051
+No                -0.673977     5.83666

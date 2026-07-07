@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.25, green_list_bias=10.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Intending to prove that it's keeping up with t...  ...        190
+1    Nelly Furtado has teamed up with Nas to offer ...  ...        134
+2    New Zealand took the number one spot, followed...  ...        380
+3    There's new evidence that exposure to exhaust ...  ...        161
+4    NEW YORK (Reuters) - The U.S. dollar could get...  ...       1010
+..                                                 ...  ...        ...
+495  CHARLOTTE, N.C. -- ( TheStreet ) -- Airlines h...  ...        301
+496  SOME think turning over buildings to squatters...  ...        277
+497  Stocks discussed on the in-depth session of Ji...  ...       1340
+498  We were greeted by a disturbing odour when we ...  ...        530
+499  "He should be referred to simply as 'Sir' and ...  ...        342
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               24.249        26.0165
+No                -0.290228     11.0489

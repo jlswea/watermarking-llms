@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.75, green_list_bias=2.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Stillbirth rates have dropped by a quarter ove...  ...        453
+1    A post made 2 weeks ago highlighted how in 198...  ...        402
+2    * RBI aims to minimise impact on bond yields b...  ...        699
+3    Late last week, my Foolish colleague Seth Jays...  ...        612
+4    PLYMOUTH – The 70th annual Terryville Country ...  ...        111
+..                                                 ...  ...        ...
+493  The constellation of elite interests that surp...  ...       1356
+494  The title alone gives pause for debate. Should...  ...        495
+495  Andy Morrell\nWrexham player-manager Andy Morr...  ...        186
+496  By Sruthi Ramakrishnan (Reuters) - J.C. Penney...  ...        545
+497  There is no mystery which Democrat will succee...  ...        557
+
+[498 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                4.63835      12.1438
+No                -0.807402     11.242

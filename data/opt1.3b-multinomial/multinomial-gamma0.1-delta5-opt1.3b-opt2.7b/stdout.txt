@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.1, green_list_bias=5.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Sen. John McCain (R-Ariz.) said Sunday that hi...  ...         81
+1    Doors to the TAC sale open at 11 a.m. Friday, ...  ...        995
+2    French Education Minister Vincent Peillon (far...  ...        886
+3    news, local-news,\nALBURY Council has unanimou...  ...        319
+4    Watford are being investigated by the English ...  ...         43
+..                                                 ...  ...        ...
+492  DULUTH, Minn. — With less than a week remainin...  ...        771
+493  A Jefferson Parish judge will rule early next ...  ...        733
+494  Share\nLocated in the small coastal town of Tu...  ...        213
+495  He may not be steering the good ship Microsoft...  ...        365
+496  Bob: “I can can I I everything else.”\nadverti...  ...       1570
+
+[497 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               31.0671       23.8216
+No                -0.322754     11.0619

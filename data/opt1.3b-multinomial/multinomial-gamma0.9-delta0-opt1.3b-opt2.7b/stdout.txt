@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.9, green_list_bias=0.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Deputies are investigating a fatal shooting th...  ...        319
+1    Before the implosion of Web 1.0, Europe’s prem...  ...       1200
+2    Certain guys in the gym have a problem. Not yo...  ...       1254
+3    Share\nMicrosoft initially estimated it would ...  ...         14
+4    From Ebony.com:\nI spotted this woman in Savan...  ...        182
+..                                                 ...  ...        ...
+495  A GRANDMOTHER ­survived three days in her bedr...  ...        487
+496  By Theodore Opara\nTo successfully curtail inj...  ...        349
+497  Updated Nov. 6, 2017, 1:00 p.m. PT: Alec Baldw...  ...        804
+498  LEONARDTOWN, Md. (Aug. 24) - The Leonardtown B...  ...        883
+499  In the future, Siri would be able to unlock yo...  ...        400
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               0.0418793     11.1422
+No                0.115309      11.0782

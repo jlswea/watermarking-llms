@@ -1,0 +1,60 @@
+000 (15579.018.000) 2024-02-04 14:15:13 Job submitted from host: <10.10.1.131:9618?addrs=10.10.1.131-9618&alias=pascal-condor01.l3s.intra&noUDP&sock=schedd_14224_0f33>
+...
+040 (15579.018.000) 2024-02-07 02:19:33 Started transferring input files
+	Transferring to host: <10.10.1.153:9618?addrs=10.10.1.153-9618&alias=pascal-node03.l3s.intra&noUDP&sock=slot1_1_1895_f2e6_21>
+...
+040 (15579.018.000) 2024-02-07 02:19:33 Finished transferring input files
+...
+001 (15579.018.000) 2024-02-07 02:19:34 Job executing on host: <10.10.1.153:9618?addrs=10.10.1.153-9618&alias=pascal-node03.l3s.intra&noUDP&sock=startd_1861_11d6>
+	SlotName: slot1_1@pascal-node03.l3s.intra
+	AvailableGPUs = { GPUs_CUDA0,GPUs_CUDA3 }
+	CondorScratchDir = "/var/lib/condor/execute/dir_103116"
+	Cpus = 1
+	Disk = 205855
+	GPUs = 2
+	GPUs_CUDA0 = [ GlobalMemoryMb = 11172; ECCEnabled = false; MaxSupportedVersion = 12000; DriverVersion = 12.0; DeviceName = "NVIDIA GeForce GTX 1080 Ti"; Id = "CUDA0"; Capability = 6.1; DevicePciBusId = "0000:06:10.0"; DeviceUuid = "11f3f57b-c095-d630-e4de-44ddf6307965" ]
+	GPUs_CUDA3 = [ GlobalMemoryMb = 11172; ECCEnabled = false; MaxSupportedVersion = 12000; DriverVersion = 12.0; DeviceName = "NVIDIA GeForce GTX 1080 Ti"; Id = "CUDA3"; Capability = 6.1; DevicePciBusId = "0000:06:1C.0"; DeviceUuid = "c74e0120-db6e-cadb-903a-02bbaa219d7a" ]
+	Memory = 24064
+...
+006 (15579.018.000) 2024-02-07 02:19:42 Image size of job updated: 2041628
+	1994  -  MemoryUsage of job (MB)
+	2041628  -  ResidentSetSize of job (KB)
+...
+006 (15579.018.000) 2024-02-07 02:24:42 Image size of job updated: 9949136
+	6021  -  MemoryUsage of job (MB)
+	6165040  -  ResidentSetSize of job (KB)
+...
+006 (15579.018.000) 2024-02-07 02:34:43 Image size of job updated: 9949136
+	6021  -  MemoryUsage of job (MB)
+	6165132  -  ResidentSetSize of job (KB)
+...
+006 (15579.018.000) 2024-02-07 02:39:43 Image size of job updated: 9949136
+	6021  -  MemoryUsage of job (MB)
+	6165228  -  ResidentSetSize of job (KB)
+...
+006 (15579.018.000) 2024-02-07 02:49:45 Image size of job updated: 9949136
+	6021  -  MemoryUsage of job (MB)
+	6165328  -  ResidentSetSize of job (KB)
+...
+040 (15579.018.000) 2024-02-07 02:51:49 Started transferring output files
+...
+040 (15579.018.000) 2024-02-07 02:51:49 Finished transferring output files
+...
+005 (15579.018.000) 2024-02-07 02:51:49 Job terminated.
+	(1) Normal termination (return value 1)
+		Usr 0 00:31:56, Sys 0 00:00:17  -  Run Remote Usage
+		Usr 0 00:00:00, Sys 0 00:00:00  -  Run Local Usage
+		Usr 0 00:31:56, Sys 0 00:00:17  -  Total Remote Usage
+		Usr 0 00:00:00, Sys 0 00:00:00  -  Total Local Usage
+	4963  -  Run Bytes Sent By Job
+	3397428  -  Run Bytes Received By Job
+	4963  -  Total Bytes Sent By Job
+	3397428  -  Total Bytes Received By Job
+	Partitionable Resources :    Usage  Request Allocated Assigned
+	   Cpus                 :     1.00        1         1 
+	   Disk (KB)            :  3340        3500    205855 
+	   Gpus (Average)       :                 2         2 "CUDA0,CUDA3"
+	   Memory (MB)          :  6021       24000     24064 
+
+	Job terminated of its own accord at 2024-02-07T01:51:49Z with exit-code 1.
+...

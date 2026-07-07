@@ -1,0 +1,3196 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Detection of LLM-generated Text using Watermarks</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css" />
+  <style>img[src^="assets/"]{background:#fff;padding:6px;border-radius:4px;max-width:100%}</style>
+  <script
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"
+  type="text/javascript"></script>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Detection of LLM-generated Text using Watermarks</h1>
+</header>
+<h1 id="chap:introduction">Introduction</h1>
+<p><span data-acronym-label="llm"
+data-acronym-form="plural+full">llms</span> are getting larger and more
+capable at generating human-like text automatically. The generated texts
+are convincing but oftentimes factually false. While there are valid use
+cases for such models like writing assistance and information retrieval,
+there is also potential for misuse. Spreading misinformation and
+conducting academic fraud can be facilitated by <span
+data-acronym-label="llm" data-acronym-form="plural+short">llms</span>.
+As <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> require increasingly large
+amounts of training data and the model’s own output takes an increasing
+share of the total text generation, another challenge is to prevent
+model output from being used as training data for another model. This
+necessitates a mechanism for classifying a given text as either machine
+or human generated.</p>
+<p>The current research on text detection mechanisms can broadly be
+categorized into two groups. One requires action by the owner of the
+generating language model while the other solely relies on so called
+post-hoc detectors where the detection phase is completely independent
+from the generation phase. Post-hoc detectors rely on signals that are
+inherent to machine generated text. Hence, they assume that there is a
+generalizable difference between human- and machine-generated text. This
+line of classifiers is discussed in chapter <a href="#chap:posthoc"
+data-reference-type="ref" data-reference="chap:posthoc">3</a>.</p>
+<p>All post-hoc detection methods rely on a statistically significant
+bias in the distribution of machine-generated text when compared to a
+natural language distribution. This raises two concerns:</p>
+<ol>
+<li><p>A detector could be triggered by text that deviates from the
+assumed norm but is still human-generated. As noted by Kirchenbauer
+et al. <span class="citation"
+data-cites="kirchenbauer2023watermark"></span> this could apply to
+non-native speakers or users of computer tools that assist in correcting
+grammar or finding synonyms.</p></li>
+<li><p>Secondly the margin between ever improving <span
+data-acronym-label="llm" data-acronym-form="plural+short">llms</span>
+and genuine human output could narrow so that either very long sequences
+are required to archive an acceptable level of confidence in the
+classification or that a classification becomes not possible at
+all.</p></li>
+</ol>
+<p>These concerns and the theoretical limits of detectability motivate a
+second line of classifiers discussed in chapter <a
+href="#chap:proactive" data-reference-type="ref"
+data-reference="chap:proactive">4</a>. Classifiers of this kind do not
+assume inherent differences but rather rely on proactive measures taken
+by the model owner. These measures intent to create the information
+required for reliable classification artificially. This information can
+be associated with a generated text and be stored separately in a
+database, as described in section <a href="#sec:retrieval"
+data-reference-type="ref" data-reference="sec:retrieval">4.1</a>, or it
+can be embedded as a watermark in the generated text itself.
+Watermarking in <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> is a subset of
+Steganography, i.e., the embedding of arbitrary hidden information in
+data. Watermarking of text as the output of <span
+data-acronym-label="llm" data-acronym-form="plural+short">llms</span> is
+then the task of encoding a signal in the text’s token. This signal is
+not visible to a human reader but can be decoded algorithmically. The
+watermarking approach is discussed in section <a
+href="#sec:watermarking" data-reference-type="ref"
+data-reference="sec:watermarking">4.2</a>.</p>
+<p>The contributions of this thesis are threefold. A compact set of
+preliminaries, tailored and interpreted for the provenance
+classification task, is presented. A survey of proposed solutions is
+conducted. The proposals are categorized according to their defining
+features. The proposals are analyzed quantitatively based on
+experimental results and qualitatively based on a standardized set of
+desired characteristics. The analysis highlights different aspects of
+the text classification task via the individual strengths and weaknesses
+of a proposed solution. Finally, an implementation of the watermarking
+scheme by Kirchenbauer et al. <span class="citation"
+data-cites="kirchenbauer2023watermark"></span> is provided in two
+versions. One is model agnostic and based on PyTorch. The other is
+minimal and pure C.</p>
+<p><img src="assets/render-1.svg" alt="image" /></p>
+<h1 id="chap:preliminaries">Preliminaries</h1>
+<p>This chapter sets up the background for the remainder of this thesis.
+The necessary definitions are given for binary classification in
+general, language models, and their text generation strategies.
+Important concepts for evaluating text are summarized in section <a
+href="#sec:entropy" data-reference-type="ref"
+data-reference="sec:entropy">2.2.4</a>.</p>
+<h2 id="binary-classification">Binary Classification</h2>
+<p>The following section provides an overview of the classification task
+and measures for evaluating results. It is based on a discussion of
+classification assessment methods by Tharwat <span class="citation"
+data-cites="tharwat2018classification"></span> and an introduction to
+<span data-acronym-label="roc"
+data-acronym-form="singular+short">roc</span> analysis by Fawcett <span
+class="citation" data-cites="fawcett2006introduction"></span>.</p>
+<p>The detection of algorithmically generated text is a binary
+classification task. The text can either be labeled as
+<em>machine-generated</em> or <em>human-generated</em>. For a classifier
+tasked with detecting generated text the class
+<em>machine-generated</em> is synonymous with a <em>positive</em> result
+<span class="math inline">\(P\)</span>. The class
+<em>human-generated</em> represents a <em>negative</em> result <span
+class="math inline">\(N\)</span>. The sum of all actual negative
+instances <span class="math inline">\(N\)</span> and all actual positive
+instances <span class="math inline">\(P\)</span> is the total population
+of a classification experiment. Each input text is assigned one of two
+classes. This assignment is also called the classifiers prediction and
+hence results in a positive prediction <span
+class="math inline">\(\mathrm{PP}\)</span> and a negative prediction
+<span class="math inline">\(\mathrm{NP}\)</span>.</p>
+<p>The binary classification can have four distinct outcomes of which
+two are correct and two are erroneous classifications. A <em>true
+positive</em> outcome <span class="math inline">\(\mathrm{TP}\)</span>
+occurs if actual and predicted class are both positive, i.e., the input
+text is known to be machine-generated and is also classified as such.
+The correct classification of an actual negative result <span
+class="math inline">\(N\)</span> is considered a <em>true negative</em>.
+An outcome is <em>false positive</em> if the prediction is positive but
+the actual class is negative. This is also called a type-I error in
+statistics. A <em>false negative</em> or type-II error occurs if an
+actual positive result is classified as negative. An overview is given
+in the contingency table <a href="#tab:classificationOutcome"
+data-reference-type="ref"
+data-reference="tab:classificationOutcome">2.1</a>.</p>
+<p><span id="tab:classificationOutcome"
+data-label="tab:classificationOutcome"></span> <img
+src="assets/render-2.svg" alt="image" /></p>
+<p>Classification performance is commonly assessed using
+<em>accuracy</em> <span class="math inline">\(\mathrm{Acc}\)</span> and
+<em>error rate</em> <span class="math inline">\(\mathrm{Err}\)</span>.
+<span class="math inline">\(\mathrm{Acc}\)</span> is the ratio of
+correctly classified instances and total number of instances: <span
+class="math display">\[Acc = \frac{\mathrm{TP} +
+\mathrm{TN}}{\mathrm{TP} + \mathrm{TN} + \mathrm{FP} +
+\mathrm{FN}}\text{.}\]</span> The error rate <span
+class="math inline">\(\mathrm{Err}\)</span> measures incorrectly
+classified instances in relation to the total number of instances: <span
+class="math inline">\(1-\mathrm{Acc}\)</span>. These two measures don’t
+differentiate between the types of success and failure. Two classifiers
+can have identical accuracy but behave very differently with regards to
+type-I and type-II errors. For that reason they are commonly
+supplemented or replaced by the metrics <em>precision</em> and
+<em>recall</em>.</p>
+<div class="definition">
+<p><strong>Definition 2.1</strong> (precision). <em>A real number
+between <span class="math inline">\(0\)</span> and <span
+class="math inline">\(1\)</span> that measures the amount of true
+positive outcomes in relation to the total amount of predicted positive
+outcomes: <span class="math display">\[\mathrm{precision} =
+\frac{\mathrm{TP}}{\mathrm{PP}}\text{.}\]</span> This quantity can also
+be given in terms of number of type-I errors with: <span
+class="math display">\[\mathrm{TP} = \mathrm{PP} - \mathrm{FP} =
+\mathrm{PP} - (\text{type-\RN{1} error})\text{.}\]</span></em></p>
+</div>
+<div id="def:recall" class="definition">
+<p><strong>Definition 2.2</strong> (recall). <em>The amount of true
+positive occurrences relative to the actual positive population. With
+<span class="math inline">\(\mathrm{recall} \in [0,1]\)</span> this
+value measures the rate at which the positive class was assigned
+correctly. The true positive rate can also be expressed in terms of
+type-II errors: <span class="math display">\[\mathrm{recall} =
+\frac{\mathrm{TP}}{P} = \frac{P-\mathrm{FN}}{P} =
+1-\frac{\mathrm{FN}}{P} = 1-\frac{(\text{type-\RN{2} error})}{P}
+\text{.}\]</span></em></p>
+</div>
+<p>The F-score is a popular metric for evaluating the quality of a
+classifier. It combines the precision and recall metrics, thus considers
+both type-I and type-II errors.</p>
+<div class="definition">
+<p><strong>Definition 2.3</strong> (F-score). <em>The <span
+class="math inline">\(F_1\)</span>-score is the harmonic mean of
+precision and recall, i.e., <span class="math display">\[F_1 = 2 \cdot
+\frac{\mathrm{precision} \cdot \mathrm{recall}}{\mathrm{precision} +
+\mathrm{recall}} \text{.}\]</span> An additional parameter <span
+class="math inline">\(\beta\)</span> is used to express relative
+importance of one metric over the other in the more general <span
+class="math inline">\(F_{\beta}\)</span>-score. With <span
+class="math inline">\(\beta \in \mathbb{R}^+\)</span> the <span
+class="math inline">\(F_{\beta}\)</span>-score is given as <span
+class="math display">\[F_{\beta} = (1+{\beta}^2) \cdot
+\frac{\mathrm{precision} \cdot \mathrm{recall}}{{\beta}^2 \cdot
+\mathrm{precision} + \mathrm{recall}} \text{.}\]</span></em></p>
+</div>
+<p>A classification decision is always a tradeoff between capturing all
+occurrences of a class in the population and avoiding to assign a class
+incorrectly. This tradeoff is captured in the relation between the
+<em>true positive rate</em> <span
+class="math inline">\(\mathrm{TPR}\)</span> and the <em>false positive
+rate</em> <span class="math inline">\(\mathrm{FPR}\)</span>. TPR is a
+synonym for recall as defined in definition <a href="#def:recall"
+data-reference-type="ref" data-reference="def:recall">2</a>. The false
+positive rate is defined accordingly.</p>
+<div class="definition">
+<p><strong>Definition 2.4</strong> (false positive rate). <em>The amount
+of false positive occurrences relative to the actual negative
+population: <span class="math display">\[\mathrm{FPR} =
+\frac{\mathrm{FP}}{\mathrm{FP} + \mathrm{TN}} = \frac{\mathrm{FP}}{N}
+\text{.}\]</span></em></p>
+</div>
+<p>The true positive and the false positive rates are functions of the
+classifiers threshold level. If the threshold is set so that only the
+positive class is assigned, this will yield <span
+class="math inline">\(\mathrm{TPR} = \mathrm{FPR} = 1\)</span>. A
+threshold on the opposite side of the spectrum would yield zero positive
+predictions and hence <span class="math inline">\(\mathrm{TPR} =
+\mathrm{FPR} = 0\)</span>. Meaningful classification is only possible
+for thresholds between the two extremes. The goal is to achieve the
+highest possible ratio <span
+class="math inline">\(\frac{\mathrm{TPR}}{\mathrm{FPR}}\)</span>.
+Plotting FPR on the <span class="math inline">\(x\)</span>-axis and TPR
+on the <span class="math inline">\(y\)</span>-axis for all threshold
+levels yields a graph that is called the <em>Receiver Operating
+Characteristic</em> (ROC) curve.</p>
+<div class="definition">
+<p><strong>Definition 2.5</strong> (receiver operating characteristic
+<span class="citation" data-cites="tharwat2018classification"></span>).
+<em>Let <span class="math inline">\(\tau\)</span> be a classifiers
+threshold in <span class="math inline">\((-\infty, \infty)\)</span> and
+let <span class="math inline">\(\mathrm{FPR}(\tau)\)</span> and <span
+class="math inline">\(\mathrm{TPR}(\tau)\)</span> be the false positive
+and true positive rates at that threshold respectively. The ROC curve is
+then the set of all these parameterized points: <span
+class="math display">\[\mathrm{ROC} = \left\{ \forall \, \tau: \big(
+\mathrm{FPR}(\tau), \mathrm{TPR}(\tau) \big) \right\}
+\text{.}\]</span></em></p>
+</div>
+<p>The ROC curve can be aggregated into the single scalar metric
+AUC-ROC. It measures the area under the ROC curve. As such it is an
+average score over all possible FPR values in <span
+class="math inline">\([0,1]\)</span>. The AUC-ROC itself takes values
+between <span class="math inline">\(0\)</span> and <span
+class="math inline">\(1\)</span>. A perfect classifier would yield <span
+class="math inline">\(\text{AUC-ROC}=1\)</span> and a random classifier
+<span class="math inline">\(\text{AUC-ROC}=0.5\)</span>.</p>
+<h2 id="language-models">Language Models</h2>
+<p>This section is based on the third edition draft of Jurafsky and
+Martin’s introduction to speech and language processing <span
+class="citation" data-cites="jurafsky2024speech"></span>. All
+discussions and definitions primarily consider causal language modeling
+as this is the prevailing <span data-acronym-label="nlp"
+data-acronym-form="singular+short">nlp</span> task for this thesis.</p>
+<p>Language models assign probabilities to each token in a vocabulary.
+These probabilities are also called the probability distribution over
+the vocabulary and are used to predict the next token in a sequence of
+tokens.</p>
+<div class="definition">
+<p><strong>Definition 2.6</strong> (token). <em>A token is a word, a
+fragment of a word, or a single character. Let <span
+class="math inline">\(t\)</span> be a natural non-negative number
+between <span class="math inline">\(0\)</span> and <span
+class="math inline">\(|\mathcal{V}|\)</span>. Then <span
+class="math inline">\(t\)</span> is called the <em>token ID</em>. It is
+used to index the vocabulary <span
+class="math inline">\(\mathcal{V}\)</span> and to identify individual
+token so that <span class="math inline">\(\mathcal{V}_t\)</span> equals
+the <span class="math inline">\(t\)</span>-th token in <span
+class="math inline">\(\mathcal{V}\)</span>.</em></p>
+</div>
+<p>For practical reasons additional tokens are needed that are not
+related to words or fragments thereof. These tokens are used to control
+the text generation algorithm and are therefore called <em>control
+token</em>. Depending on the format of the input a <em>start of
+sequence</em> identifier <span class="math inline">\(\langle \mathrm{S}
+\rangle\)</span> is needed. This might be the case when batch processing
+prompts. A corresponding <em>end of sequence</em> token <span
+class="math inline">\(\langle \mathrm{EOS} \rangle\)</span> is used to
+end the text generation loop. This token can be intentionally suppressed
+to guarantee that the generated text exceeds a specific minimum length.
+A language model could further encounter tokens that are not part of
+their vocabulary. A token of that nature defaults to the <em>unknown
+token</em> encoding <span class="math inline">\(\langle \mathrm{UNK}
+\rangle\)</span>. The control tokens and their meaning are summarized in
+table <a href="#tab:controlToken" data-reference-type="ref"
+data-reference="tab:controlToken">2.2</a>.</p>
+<p><span id="tab:controlToken" data-label="tab:controlToken"></span>
+<img src="assets/render-3.svg" alt="image" /></p>
+<p>The probabilities are typically assigned based on a context. In the
+simplest case the context is comprised of the previous tokens that are
+either provided as the prompt or have already been generated.</p>
+<p>There are a multitude of architectures for language models. This
+section will focus on two types: <span
+class="math inline">\(n\)</span>-gram models as a baseline used in
+precursory research and <span data-acronym-label="llm"
+data-acronym-form="plural+full">llms</span> as the prevalent
+architecture in current streams of research. The terms <em>language
+model</em> and simply <em>model</em> are synonyms in subsequent use.</p>
+<div id="def:lm" class="definition">
+<p><strong>Definition 2.7</strong> (language model). <em>A language
+model LM is defined as a function that takes a vocabulary of tokens
+<span class="math inline">\(\mathcal{V}\)</span> and a sequence of <span
+class="math inline">\(n\)</span> context token <span
+class="math inline">\(S_{1:n}\)</span> as input. The context is a joined
+sequence of <span class="math inline">\(p\)</span> prompt token and
+<span class="math inline">\(g\)</span> previously generated token, so
+that <span class="math inline">\(n = p + g\)</span>: <span
+class="math display">\[S_{1:n} = ( s_{1}, s_{2}, \dots, s_{p}, s_{p+1},
+\dots, s_{n} ) \text{.}\]</span></em></p>
+<p><em>Let <span class="math inline">\(T\)</span> be a discrete random
+variable that represents the next token. Let further <span
+class="math inline">\(t\)</span> be a <em>token ID</em> in <span
+class="math inline">\(\mathcal{V}\)</span>. The output of the model is a
+conditional probability distribution <span class="math inline">\(P(T =
+\mathcal{V}_t)\)</span> over all token IDs <span
+class="math inline">\(t\)</span> in the models vocabulary <span
+class="math inline">\(\mathcal{V}\)</span>. The probability of a
+specific realization <span class="math inline">\(\mathcal{V}_t\)</span>
+is given as <span class="math inline">\(p(\mathcal{V}_t) \in
+[0,1]\)</span> with <span class="math inline">\(\sum_t p(\mathcal{V}_t)
+= 1\)</span> for all <span class="math inline">\(t \in
+\mathcal{V}\)</span>.</em></p>
+<p><em>The models output is a vector of probabilities for every possible
+realization for <span class="math inline">\(T\)</span>: <span
+class="math display">\[\mathrm{LM}(\mathcal{V}, S_{1:n}) = \left[ \,
+p(\mathcal{V}_1 \, | \, S_{1:n}), p(\mathcal{V}_2 \, | \, S_{1:n}),
+\dots, p(\mathcal{V}_{|\mathcal{V}|} \, | \, \, S_{1:n})
+\right]\]</span></em></p>
+</div>
+<p>The final output token <span class="math inline">\(s_{n+1}\)</span>
+will be sampled from the probability distribution over <span
+class="math inline">\(\mathcal{V}\)</span> and appended to the sequence
+of previously generated token <span
+class="math inline">\(S_{1:n}\)</span>. The methods and strategies for
+this process are summarized in section <a href="#sec:decodingStrat"
+data-reference-type="ref"
+data-reference="sec:decodingStrat">2.2.3</a>.</p>
+<h3 id="markovian-n-gram-models">Markovian <span
+class="math inline">\(n\)</span>-gram models</h3>
+<p><span class="math inline">\(n\)</span>-gram language models are a
+simple implementation for the language modeling task. The eponymous
+<span class="math inline">\(n\)</span>-grams are a group of <span
+class="math inline">\(n\)</span> tokens. These tokens can be a single
+character, multiple characters, words, or even sequences of words. A
+word based tokenization is most common in this context. A <span
+class="math inline">\(1\)</span>-gram, or more commonly a unigram, is
+hence considered to be a single word. A bigram would be a sequence of
+two words, a trigram a sequence of three words and so forth. This type
+of language model works on the hypothesis that the probability of a
+token is solely dependent on the previous <span
+class="math inline">\(n-1\)</span> tokens. This is the Markov assumption
+and this name is sometimes also used in the descriptive term
+<em>Markovian</em> <span class="math inline">\(n\)</span>-gram language
+model.</p>
+<p>For the special case <span class="math inline">\(n=1\)</span> a <span
+class="math inline">\(n\)</span>-gram model can be considered a state
+machine with fixed transition probabilities between words. The
+probability of each <span class="math inline">\(n\)</span>-gram is fixed
+and does not depend on the previously generated tokens. The predictions
+in bigram models depend only on a single previous token. In practice
+<span class="math inline">\(3\)</span>, <span
+class="math inline">\(4\)</span>, and <span
+class="math inline">\(5\)</span>-gram models are used most frequently.
+As Lavergne et al. <span class="citation"
+data-cites="lavergne2008detecting"></span> note, trigrams seem to cover
+most of the semantic and syntactic relations in natural language.</p>
+<div id="def:markovLM" class="definition">
+<p><strong>Definition 2.8</strong> (<span
+class="math inline">\(n\)</span>-gram language model). <em>A case of the
+general language model given in definition <a href="#def:lm"
+data-reference-type="ref" data-reference="def:lm">7</a>. The length of
+the context sequence is set to a constant <span
+class="math inline">\(c\)</span> that does not depend on the prompt
+length or the number of previously generated tokens: <span
+class="math display">\[\mathrm{LM}(\mathcal{V}, S_{1:c}) = \left[ \,
+p(\mathcal{V}_1 \, | \, S_{1:c}), p(\mathcal{V}_2 \, | \, S_{1:c}),
+\dots,  p(\mathcal{V}_{|\mathcal{V}|} \, | \, S_{1:c}) \,  \right]
+\text{.}\]</span></em></p>
+</div>
+<p>This conditional probability is only defined if <span
+class="math inline">\(c\)</span> previous tokens are available.
+Otherwise the input can be padded with <span
+class="math inline">\(c\)</span> start of sequence token. Pad tokens can
+be modeled with an appropriate probability depending on the use case. A
+popular alternative is a piecewise decrement of <span
+class="math inline">\(c\)</span> until enough previous tokens are
+available. The probability of this decremented <span
+class="math inline">\(n\)</span>-gram is used to approximate the value
+for the original <span class="math inline">\(c\)</span>.</p>
+<h3 id="large-language-models">Large Language Models</h3>
+<p>Purely statistical <span class="math inline">\(n\)</span>-gram
+language models have been superseded by recurrent neural networks which
+in turn have been superseded by <span data-acronym-label="llm"
+data-acronym-form="plural+full">llms</span>. <span
+data-acronym-label="llm" data-acronym-form="plural+short">llms</span>
+combine large training datasets and the transformer architecture for
+neural networks, as proposed by Vaswani et al. <span class="citation"
+data-cites="vaswani2023attention"></span>. This allows them to
+increasingly learn not only co-occurrence probabilities of tokens but
+also their meaning. The assumption that tokens that occur in similar
+contexts also have a similar meaning is called the <em>distributional
+hypothesis</em>. This hypothesis also covers the inverse where the
+difference in meaning of a token can be measured in terms of the
+difference of their contexts. It is a linguistic concept discussed in
+detail by Harris <span class="citation"
+data-cites="harris1954distributional"></span>.</p>
+<p>Apart from visual stimulus and real-world interactions, humans can
+learn concepts by reading about them. Jurafsky et al. <span
+class="citation" data-cites="jurafsky2024speech"></span> describe this
+as building a model for the meaning of a word or a sequence of words by
+associating it with the meaning of the words that they co-occur with.
+This knowledge is acquired over a long time and can be used for
+reasoning, building more complex models of abstract concepts, and
+associations with other words and concepts long after the point of
+initial acquisition. This concept of learning by reading is also used to
+explain the capabilities of <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span>.</p>
+<p>Current <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> are rightfully called
+<em>large</em> as they do not only possess parameter counts in the
+million and billions but are also trained on large corpora of natural,
+human-generated texts. This large amount of available knowledge during
+training can be used to build a rich set of associations between words,
+their contexts, and their meaning. Using this information is facilitated
+by the transformer’s self-attention mechanism. It allows to extract the
+information from an arbitrary large context. As the size of the context
+directly correlates to matrix sizes during training and inference and
+hence computational complexity, there is a limit to the context size in
+practice. It is commonly set to between <span
+class="math inline">\(1024\)</span> and <span
+class="math inline">\(4096\)</span> tokens but reach as high as one
+million in Google’s latest Gemini 1.5 model <span class="citation"
+data-cites="pichai2024model"></span>. A <span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> extends the general
+language model in definition <a href="#def:lm" data-reference-type="ref"
+data-reference="def:lm">7</a> by making explicit use of a context <span
+class="math inline">\(S_{1:n}\)</span> with <span
+class="math inline">\(n \geq 1024\)</span>. They further produce real
+values as a score for each token in the vocabulary as an intermediate
+step. These values form the <em>logits vector</em>. It is normalized to
+values between <span class="math inline">\(0\)</span> and <span
+class="math inline">\(1\)</span> in a second and final step to represent
+a probability distribution over the vocabulary. This is done by applying
+the <em>softmax</em> function – a generalization of the
+<em>logistic</em> function.</p>
+<div id="def:sigmoid" class="definition">
+<p><strong>Definition 2.9</strong> (logistic function). <em>A sigmoid
+curve that outputs values between zero and one for any real input number
+<span class="math inline">\(x \in (-\infty,\infty)\)</span>. It is also
+referred to simply as the <em>sigmoid</em>: <span
+class="math display">\[\sigma(x) = \frac{1}{1+\mathrm{e}^{-x}}
+\text{.}\]</span></em></p>
+</div>
+<div class="definition">
+<p><strong>Definition 2.10</strong> (softmax function). <em>A
+generalization of the logistic function. It takes a vector <span
+class="math inline">\(x=[x_1,x_2,\dots,x_k]\)</span> of <span
+class="math inline">\(k\)</span> real numbers with <span
+class="math inline">\(x_i \in (-\infty,\infty)\)</span> for <span
+class="math inline">\(1 \leq i \leq k\)</span> as input. The output is a
+probability distribution <span class="math inline">\(y\)</span> over the
+<span class="math inline">\(k\)</span> elements, i.e., each input <span
+class="math inline">\(x_i\)</span> is mapped to a real number <span
+class="math inline">\(y_i\)</span> between <span
+class="math inline">\(0\)</span> and <span
+class="math inline">\(1\)</span> with all probabilities summing to <span
+class="math inline">\(1\)</span>. A single probability <span
+class="math inline">\(y_i\)</span> from the distribution <span
+class="math inline">\(y\)</span> is defined as <span
+class="math display">\[y_i = \text{softmax}(x)_i =
+\frac{\mathrm{e}^{x_i}}{\sum_{j=1}^{k} \mathrm{e}^{x_j}} \text{, for } 1
+\leq i \leq k \text{.}\]</span> The complete probability distribution
+<span class="math inline">\(y\)</span> is a vector containing all
+probabilities <span class="math inline">\(y_i\)</span>: <span
+class="math display">\[\begin{split}
+            y = \text{softmax}(x) &amp;= [ \, y_1,y_2,\dots,y_k \, ] \\
+                &amp;= \left[ \, \frac{\mathrm{e}^{x_1}}{\sum_{j=1}^{k}
+\mathrm{e}^{x_j}},  \frac{\mathrm{e}^{x_2}}{\sum_{j=1}^{k}
+\mathrm{e}^{x_j}}, \dots, \frac{\mathrm{e}^{x_k}}{\sum_{j=1}^{k}
+\mathrm{e}^{x_j}} \, \right] \text{.}
+        \end{split}\]</span></em></p>
+</div>
+<p>The output of a <span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> can be described in two
+steps. The first one produces a logits vector. This step is the result
+of the models forward pass and is hence referenced as the forward
+function. The second step applies the softmax function and yields the
+final probability distribution over <span
+class="math inline">\(\mathcal{V}\)</span> as described for the general
+language model in definition <a href="#def:lm" data-reference-type="ref"
+data-reference="def:lm">7</a>.</p>
+<div class="definition">
+<p><strong>Definition 2.11</strong> (<span data-acronym-label="llm"
+data-acronym-form="singular+long">llm</span>). <em>A <span
+data-acronym-label="llm" data-acronym-form="singular+long">llm</span> is
+a deterministic algorithm that takes a vocabulary of tokens <span
+class="math inline">\(\mathcal{V}\)</span> and a sequence of <span
+class="math inline">\(n = p + g\)</span> context tokens <span
+class="math inline">\(S_{1:n}\)</span> as input. The context consists of
+<span class="math inline">\(p\)</span> prompt token and <span
+class="math inline">\(g\)</span> previously generated tokens: <span
+class="math display">\[S_{1:n} = ( s_{1}, s_{2}, \dots, s_{p}, s_{p+1},
+\dots, s_{n} )\]</span> The algorithm is a concatenation of the forward
+and the softmax function where the forward function produces a real
+numbered score <span class="math inline">\(l_t\)</span> for each token
+ID <span class="math inline">\(t\)</span> given <span
+class="math inline">\(\mathcal{V}\)</span> and <span
+class="math inline">\(S_{1:n}\)</span>. The resulting logits vector
+<span class="math display">\[l = \left[ \, l_1, l_2, \dots,
+l_{|\mathcal{V}|} \, \right] = \text{forward}(\mathcal{V},
+S_{1:n})\]</span> is piped to the softmax function to produce the final
+probability distribution <span class="math display">\[\begin{split}
+            \mathrm{LLM}(\mathcal{V}, S_{1:n}) &amp;=
+\text{softmax}(\text{forward}(\mathcal{V}, S_{1:n})) \\
+                &amp;= \left[ \, p(\mathcal{V}_1 \, | \, S_{1:n}),
+p(\mathcal{V}_2 \, | \, S_{1:n}),\dots , (\mathcal{V}_{|\mathcal{V}|} \,
+| \, S_{1:n}) \, \right] \text{.}
+        \end{split}\]</span></em></p>
+</div>
+<p><span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> exhibit very good
+performance in all kinds of <span data-acronym-label="nlp"
+data-acronym-form="singular+short">nlp</span> tasks when compared to
+previous language model implementations. They are especially considered
+transformational in generative tasks like summarization, translation, or
+question answering.</p>
+<h3 id="sec:decodingStrat">Decoding Strategies</h3>
+<p>The task of generating text with a language model is called
+<em>causal</em> or <em>autoregressive generation</em>. This is done by
+iteratively choosing the next token from the model’s probability
+distribution. The probability assigned to a token by the language model
+is conditioned on the context, which as per definition <a href="#def:lm"
+data-reference-type="ref" data-reference="def:lm">7</a> consists of a
+prompt and the previously generated tokens. Hence there is a causal
+relationship between prompt, previous generation, and the next token.
+This relation is also autoregressive as the context does not only
+include a prompt from an outside source, most commonly a human, but also
+the model’s own previously generated token. Choosing the next token is
+also called <em>decoding</em>. The learned and aggregated knowledge of
+the model is encoded in its conditional probability distribution and is
+decoded by choosing a token based on these probabilities. The general
+procedure for generating text by decoding a <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>
+generated probability distribution is given in algorithm <a
+href="#alg:decoding" data-reference-type="ref"
+data-reference="alg:decoding">1</a>.</p>
+<p><span id="alg:decoding" data-label="alg:decoding"></span> <img
+src="assets/render-4.svg" alt="image" /></p>
+<h4 id="deterministic-decoding">Deterministic Decoding</h4>
+<p>The simplest decoding method is <em>greedy search</em> where the
+token ID with the highest probability is chosen at each time step: <span
+class="math display">\[s_{n+1} = \text{decode}_\text{greedy} \bigl(p(t |
+S_{1:n}) \bigr) = \operatorname*{arg\,max}_{t \in \mathcal{V}} p(t |
+S_{1:n}) \text{.}\]</span> This yields a deterministic text generation
+algorithm that will always produce the highest quality text possible
+given the context <span class="math inline">\(S_{1:n}\)</span> and the
+model’s weights. The generated text, however, is prone to repetition
+and, as with every greedy approach, a global optimum is not guaranteed.
+A high probability token is unreachable for a greedy decoding algorithm
+if it occurs after a non-maximum probability token. This is partly
+addressed by the <em>beam search</em> method. Instead of selecting the
+one token with the maximum probability at each time step, a number of
+decodings are done in parallel. Each decoding stream selects a token
+with the next highest probability in descending order. Once all streams
+complete, the overall probability of the sequence is computed. The token
+that yields the highest probability for the subsequent sequence is
+selected as <span class="math inline">\(s_{n+1}\)</span>. This will find
+a strictly better solution than greedy search but will not guarantee an
+optimum unless the number of beams is equal to the number of options,
+i.e., <span class="math inline">\(|\mathcal{V}|\)</span>.</p>
+<p>Holtzman et al. <span class="citation"
+data-cites="holtzman2020curious"></span> note that human preference is
+not always aligned with high probability decoding. High quality human
+texts display a high variance in the token’s probability as assigned by
+an evaluating language model. This points to either a significant
+difference between human and the model’s probability distribution or a
+human preference for varying probabilities. A low probability token can
+be seen as a surprise to the reader and a compilation of anticipated and
+surprising tokens could result in original, creative and overall
+human-like texts. Texts that display continuously high probabilities are
+evaluated as bland and repetitive by humans. Repetitions can be
+explained as a result of learning probabilities by co-occurrences. These
+probabilities will then favor mainstream token that continue the context
+sequence in most instances in the training data. This can have a self
+reinforcing effect as including mainstream tokens into the context will
+make other popular tokens even more likely. With decoding mechanisms
+that restrict the generated text to high probability tokens the
+algorithm is locked into a subset of the vocabulary without an
+opportunity to explore less likely transitions. This is the common
+dilemma between exploring and exploiting certain rewards and makes the
+case for including a degree of randomness in the decoding algorithm.</p>
+<h4 id="randomized-decoding">Randomized Decoding</h4>
+<p>Choosing the next token randomly is called <em>sampling</em>. This
+method is also referred to as <em>random</em> or <em>multinomial</em>
+sampling. Symbolically it is denoted as <span class="math inline">\(x
+\sim p(x)\)</span> where <span class="math inline">\(x\)</span> is a
+realization of a random variable sampled from the distribution <span
+class="math inline">\(p(x)\)</span>. The generated text from this method
+exhibits more variety than deterministically decoded texts. It is
+however prone to be incoherent and less factual. Tokens with high
+probability are still likely to be sampled but the probabilities of all
+unlikely tokens combined yields a real chance for such tokens to be
+sampled regularly. This is mostly an issue for rather flat distributions
+and can be countered by reducing the sample space to the most likely
+token.</p>
+<p>Sampling from a subset of the <span class="math inline">\(k\)</span>
+highest probability tokens is called <em>top-<span
+class="math inline">\(k\)</span></em> sampling. It was first presented
+by Fan et al. <span class="citation"
+data-cites="fan2018hierarchical"></span>. The method works by selecting
+the <span class="math inline">\(k\)</span> tokens with the highest
+probability from the model’s output. The probabilities of the <span
+class="math inline">\(k\)</span> token are then renormalized to yield a
+valid probability distribution. Finally the next token <span
+class="math inline">\(s_{n+1}\)</span> is randomly sampled from only
+these <span class="math inline">\(k\)</span> tokens. This method aims to
+balance variety and quality. A higher <span
+class="math inline">\(k\)</span> creates a more varied decoding akin to
+random sampling. A lower <span class="math inline">\(k\)</span> creates
+a higher confidence decoding. The results are identical to greedy search
+for <span class="math inline">\(k=1\)</span> and to random sampling for
+<span class="math inline">\(k=|\mathcal{V}|\)</span>.</p>
+<p>As top-<span class="math inline">\(k\)</span> selects a predefined
+number of the highest probability tokens, the total amount of captured
+probability mass fluctuates depending on the shape of the distribution.
+The top-<span class="math inline">\(k\)</span> token will represent a
+smaller fraction of the total probability mass the flatter the curve
+gets. This changes the amount of randomness in the selected tokens
+between each timestamp of the decoding phase. The number of top
+probability tokens <span class="math inline">\(k\)</span> is hence not
+ideal to control randomness.</p>
+<p>This issue is addressed with the <em>top-<span
+class="math inline">\(p\)</span></em> decoding method introduced by
+Holtzman et al. <span class="citation"
+data-cites="holtzman2020curious"></span>. Instead of defining a constant
+number of tokens to create a subset with a varying percentage of the
+total probability mass, top-<span class="math inline">\(p\)</span> keeps
+the captured probability mass fixed and selects the minimum number of
+tokens to reach it. The <span class="math inline">\(t\)</span> tokens
+with the highest assigned probability are added to the top-<span
+class="math inline">\(p\)</span> vocabulary subset <span
+class="math inline">\(\mathcal{V}^p\)</span> until the combined
+probability of the selected tokens reaches or exceeds <span
+class="math inline">\(p\)</span>, i.e., <span
+class="math display">\[\sum_{t \in \mathcal{V}^p} p(t | S_{1:n}) \geq p
+\text{.}\]</span></p>
+<p>A similar effect of controlling randomness can be achieved by
+reshaping the probability distribution over the whole vocabulary instead
+of creating a subset thereof. This is done by dividing the logit values
+of a model’s output by a parameter called <em>temperature</em> <span
+class="math inline">\(\in (0,1]\)</span>. Dividing by a value smaller
+than <span class="math inline">\(1\)</span> will increase the numerators
+value proportional to its original value. Tokens with high scores get
+even higher scores both absolutely and in relation to other less
+probable tokens. After applying the softmax function, this yields a
+higher gradient probability distribution for lower temperature values.
+The distribution becomes more greedy-like. A temperature of <span
+class="math inline">\(1\)</span> will preserve the distributions
+original shape and randomness.</p>
+<h3 id="sec:entropy">Entropy and Perplexity</h3>
+<p>In the field of information theory, entropy is a measure of
+information. It was first introduced by Shannon <span class="citation"
+data-cites="shannon1948mathematical"></span> and is interpreted as the
+minimum number of bits required to encode all possible outcomes of a
+random variable.</p>
+<div id="def:entropy" class="definition">
+<p><strong>Definition 2.12</strong> (entropy, Theorem 2 <span
+class="citation" data-cites="shannon1948mathematical"></span>). <em>Let
+<span class="math inline">\(X\)</span> be a random variable and <span
+class="math inline">\(\mathcal{X}\)</span> its sample space. Let further
+<span class="math inline">\(p(x)\)</span> be a probability distribution
+over all <span class="math inline">\(x \in \mathcal{X}\)</span>. The
+entropy of <span class="math inline">\(X\)</span> in bits is then
+defined as <span class="math display">\[H(X) = - \kappa \sum_{x \in
+\mathcal{X}} p(x) \log_2 p(x)\]</span> where <span
+class="math inline">\(\kappa\)</span> is a scaling variable typically
+set to <span class="math inline">\(1\)</span>.</em></p>
+</div>
+<p>Language modeling is concerned with texts, i.e., sequences of tokens.
+Definition <a href="#def:entropy" data-reference-type="ref"
+data-reference="def:entropy">12</a> can be applied to random variables
+where realizations are sequences of tokens. This yields the entropy of a
+sequence. Adapting <span class="math inline">\(\kappa\)</span> to be the
+multiplicative inverse of the length of the sequence yields a more
+common metric for this use case – the <em>entropy rate</em>. It measures
+the average entropy per token. The entropy rate of a sequence <span
+class="math inline">\(S_{1:n} = [s_1, \dots, s_n]\)</span> is defined as
+<span class="math inline">\(\frac{1}{n} H(S_{1:n})\)</span>.</p>
+<p>A <em>language</em> <span class="math inline">\(\mathcal{L}\)</span>
+can be modeled as a stochastic process, i.e., a time indexed sequence of
+discrete random variables with a sampling space of all valid sequences
+<span class="math inline">\(S_{1:n}\)</span> of length <span
+class="math inline">\(n \in \mathbb{N}\)</span>. As languages contain
+possibly endless sequences of tokens the entropy of a language is given
+as the entropy rate of all sequences: <span class="math display">\[H(L)
+= - \lim_{n \to \infty} \frac{1}{n} \sum_{S_{1:n} \in L} p(s_1, \dots,
+s_n) \log_2 p(s_1, \dots, s_n) \text{.}\]</span></p>
+<p>Since infinite sequences of token do not exist for any language <span
+class="math inline">\(\mathcal{L}\)</span>, the true probability
+distribution <span class="math inline">\(\mathcal{H}(.)\)</span> of
+<span class="math inline">\(\mathcal{L}\)</span> cannot be known. A
+language model <span class="math inline">\(\mathrm{LM}\)</span> instead
+aims to provide a model <span
+class="math inline">\(\mathcal{M}(.)\)</span> that approximates <span
+class="math inline">\(\mathcal{H}(.)\)</span>. The entropy rate for
+language <span class="math inline">\(\mathcal{L}\)</span> can be
+estimated by using the observed probabilities of the true distribution
+<span class="math inline">\(\mathcal{H}(.)\)</span> and the log
+probabilities from <span class="math inline">\(\mathcal{H}(.)\)</span>.
+This yields the <em>cross-entropy</em> rate <span
+id="eq:cross-entropy"><span class="math display">\[
+        H(\mathcal{L},\mathrm{LM}) = - \lim_{n \to \infty} \frac{1}{n}
+\sum_{S_{1:n} \in \mathcal{L}} \mathcal{H}(s_1, \dots, s_n) \log_2
+\mathcal{M}(s_1, \dots, s_n)\]</span></span> that represents an upper
+bound for the true entropy rate <span
+class="math inline">\(H(\mathcal{L})\)</span>: <span
+class="math display">\[\begin{split}
+        H(\mathcal{L},\mathrm{LM}) &amp; = - \lim_{n \to \infty}
+\frac{1}{n} \sum_{S_{1:n} \in \mathcal{L}} \mathcal{H}(S_{1:n}) \log_2
+\mathcal{M}(S_{1:n}) \\
+            &amp; = - \lim_{n \to \infty} \frac{1}{n} \sum_{S_{1:n} \in
+\mathcal{L}} \mathcal{H}(S_{1:n}) \big(\log_2 \mathcal{M}(S_{1:n}) +
+\log_2 \mathcal{H}(S_{1:n}) - \log_2 \mathcal{H}(S_{1:n}) \big) \\
+            &amp; = - \lim_{n \to \infty} \frac{1}{n} \sum_{S_{1:n} \in
+\mathcal{L}} \mathcal{H}(S_{1:n}) \left( \log_2 \mathcal{H}(S_{1:n}) +
+\log_2 \frac{\mathcal{M}(S_{1:n})}{\mathcal{H}(S_{1:n})} \right) \\
+            &amp; = - \lim_{n \to \infty} \frac{1}{n} \sum_{S_{1:n} \in
+\mathcal{L}} \mathcal{H}(S_{1:n}) \log_2 \mathcal{H}(S_{1:n}) +
+\sum_{S_{1:n} \in \mathcal{L}} \log_2 \mathcal{H}(S_{1:n})
+\frac{\mathcal{M}(S_{1:n})}{\mathcal{H}(S_{1:n})} \\
+            &amp; = H(\mathcal{L}) + D_{\mathrm{KL}}(\mathcal{L} ||
+\mathrm{LM}) \text{.}
+    \end{split}\]</span></p>
+<p>The Kullback-Leibler divergence <span
+class="math inline">\(D_{\mathrm{KL}}(\mathcal{L} ||
+\mathrm{LM})\)</span> represents the excess number of bits needed to
+express <span class="math inline">\(\mathrm{LM}\)</span> rather than the
+true language <span class="math inline">\(\mathcal{L}\)</span>. It is a
+positive value if the model is an imperfect approximation of the
+language and gets closer to zero as the approximation improves.</p>
+<div id="def:kl" class="definition">
+<p><strong>Definition 2.13</strong> (Kullback-Leibler divergence <span
+class="citation" data-cites="kullback1951information"></span>). <em>A
+measure for the difference of two discrete random variables <span
+class="math inline">\(P\)</span> and <span
+class="math inline">\(Q\)</span> and their respective probability
+function <span class="math inline">\(p\)</span> and <span
+class="math inline">\(q\)</span> defined on the same sample space <span
+class="math inline">\(\mathcal{X}\)</span>: <span
+class="math display">\[D_{\mathrm{KL}}(P \, || \, Q) = \sum_{x \in
+\mathcal{X}} p(x) \log \left( \frac{p(x)}{q(x)} \right)
+\text{.}\]</span></em></p>
+</div>
+<p>The Shannon-McMillan-Breiman theorem states that the cross entropy
+rate in equation <a href="#eq:cross-entropy" data-reference-type="ref"
+data-reference="eq:cross-entropy">2.22</a> can be simplified to <span
+id="eq:stationaryEntropy"><span class="math display">\[
+        H(\mathcal{L},\mathrm{LM}) = - \lim_{n \to \infty} \frac{1}{n}
+\log_2 \mathcal{M}(s_1, \dots, s_n)\]</span></span> if the underlying
+stochastic process, i.e., the language <span
+class="math inline">\(\mathcal{L}\)</span>, is <em>stationary</em> and
+<em>ergodic</em>.</p>
+<p>A stationary process has a time invariant probability mass function.
+This means that a token <span class="math inline">\(s_n\)</span> has the
+same probability as a token <span class="math inline">\(s_{n+t}\)</span>
+where <span class="math inline">\(t\)</span> is an arbitrary temporal
+offset. It further means that the distribution is invariant given either
+a context sequence <span class="math inline">\(S_{1:n}\)</span> or <span
+class="math inline">\(S_{1:n+t}\)</span>. While this is, per definition
+<a href="#def:markovLM" data-reference-type="ref"
+data-reference="def:markovLM">8</a>, true for <span
+class="math inline">\(n\)</span>-gram models it does not hold for <span
+data-acronym-label="llm" data-acronym-form="plural+short">llms</span> or
+a language’s true distribution. Semantic and syntactic relations between
+token can span varied ranges and adding <span
+class="math inline">\(t\)</span> token to the context <span
+class="math inline">\(S_{1:n}\)</span> will likely affect them.</p>
+<p>Ergodicity in this context means that all possible sequences of
+tokens will be realized eventually. For <span class="math inline">\(t
+\to \infty\)</span> all elements in the sample space will be
+realized.</p>
+<p>As with the stationary nature, the assumption of ergodicity of
+language is unlikely to be true. Equation <a
+href="#eq:stationaryEntropy" data-reference-type="ref"
+data-reference="eq:stationaryEntropy">2.25</a> is therefore considered a
+useful simplification for sequences approaching infinite length rather
+than provable fact. The intuition for this simplification is that a
+sequence <span class="math inline">\(S_{1:n}\)</span> with <span
+class="math inline">\(n \to \infty\)</span> contains all other
+sequences. Summing over all possible finite sequences like in equation
+<a href="#eq:cross-entropy" data-reference-type="ref"
+data-reference="eq:cross-entropy">2.22</a> is therefore unnecessary.
+Since infinite length is practically impossible the entropy metric is
+further simplified for computation on fixed length sequences as <span
+class="math display">\[H(\mathcal{L},\mathrm{LM}) = \frac{1}{n} \log_2
+\mathcal{M}(s_1, \dots, s_n) \text{.}\]</span></p>
+<p>Perplexity is a measure of uncertainty that is tightly coupled to the
+simplified cross-entropy rate. It is defined as <span
+class="math inline">\(2\)</span> to the power of the cross-entropy rate
+<span class="math inline">\(H(\mathcal{L}, \mathrm{LM})\)</span>. Using
+the model’s distribution <span
+class="math inline">\(\mathcal{M}(.)\)</span> as an approximation for
+the language’s true distribution <span
+class="math inline">\(\mathcal{H}(.)\)</span> adds uncertainty about a
+given sequence <span class="math inline">\(S_{1:n}\)</span>. It can be
+less likely under <span class="math inline">\(\mathcal{H}(.)\)</span>
+than it is under <span class="math inline">\(\mathcal{M}(.)\)</span>.
+Encoding this uncertainty requires <span
+class="math inline">\(H(\mathcal{L}, \mathrm{LM})\)</span> additional
+bits. Each of these bits has to be set by the model as the model has no
+knowledge whether a bit is used for expressing the actual language <span
+class="math inline">\(\mathcal{L}\)</span> or model imperfection. This
+means that the model has to make <span
+class="math inline">\(2^{H(\mathcal{L}, \mathrm{LM})}\)</span>
+additional decisions.</p>
+<div id="def:ppl" class="definition">
+<p><strong>Definition 2.14</strong> (perplexity, Equation 3.53 <span
+class="citation" data-cites="jurafsky2024speech"></span>). <em>A measure
+for uncertainty about a sequence <span
+class="math inline">\(S_{1:n}\)</span> introduced by approximating its
+true probability distribution by a model. <span
+class="math display">\[\begin{split}
+            \text{PPL}(\mathcal{L}, \mathrm{LM}) &amp; =
+2^{H(\mathcal{L}, \mathrm{LM})} \\
+                &amp; = \mathcal{M}(s_1, \dots, s_n)^{-\frac{1}{n}} \\
+                &amp; = \left( \prod_{i=1}^{n} \mathcal{M}(s_i | s_1,
+\dots, s_{i-1}) \right)^{- \frac{1}{n}} \\
+                &amp; = \sqrt[n]{\prod_{i=1}^{n}
+\frac{1}{\mathcal{M}(s_i | s_1, \dots, s_{i-1})}}
+        \end{split}\]</span></em></p>
+</div>
+<h1 id="chap:posthoc">Post-hoc Detection</h1>
+<p>As described in Jawahar et al. <span class="citation"
+data-cites="jawahar2020automatic"></span>, post-hoc classifiers can be
+grouped into three categories. The first group uses classifiers that are
+trained from scratch on a dataset of labeled machine-generated and
+human-generated text samples. These sorts of classifiers can work on
+ordered sequences of tokens, i.e, are language models themselves or work
+on unordered collections of token as so called bag-of-words classifiers.
+Simple language model classifiers, as in Lavergne et al. <span
+class="citation" data-cites="lavergne2008detecting"></span>, rely on
+inherent features like perplexity and relative entropy. Bag-of-words
+classifiers work on metrics that do not rely on any given order among
+tokens and do not consider conditional probabilities between token
+pairs. Zero-shot detection form the second group of classifiers.
+Existing pre-trained models are used to assign probabilities to an input
+sequence. Sequences with a probability above a given threshold are
+considered to be machine generated. Gehrmann et al. <span
+class="citation" data-cites="gehrmann2019gltr"></span> assume that
+machine-generated texts make excessive use of a subset of the vocabulary
+while underrepresenting rare words. They leverage this by using a
+language model that is similar to the generating model to mark
+individual token with their respective probability and rank in the
+prediction of the next token. Another example in this category is
+DetectGPT by Mitchell et al. <span class="citation"
+data-cites="mitchell2023detectgpt"></span> that compares the probability
+of an input sequence to the one of minor perturbations of the same
+sequence. The last group of classifiers are based on fine-tuned models.
+Zellers et al. <span class="citation"
+data-cites="zellers2020defending"></span> train GPT2, BERT, and their
+own Grover model to minimize cross-entropy loss for making the right
+classification choice.</p>
+<p>Jawahar et al. <span class="citation"
+data-cites="jawahar2020automatic"></span> propose five desiderata for
+these so called post-hoc detectors:</p>
+<ul>
+<li><p><strong>Accuracy</strong>: Detecting machine-generated text
+reliably with a suitable tradeoff between false positives and false
+negatives.</p></li>
+<li><p><strong>Efficiency</strong>: The detector needs as little
+training data as possible to adapt to the output of a new language
+model.</p></li>
+<li><p><strong>Generalizability</strong>: Modeling choices like model
+architecture and size, training data, decoding method, and conditioning
+by the user via prompt or fine-tuning do not impact the detector’s
+reliability.</p></li>
+<li><p><strong>Interpretability</strong>: The detector’s classification
+is comprehensible to humans.</p></li>
+<li><p><strong>Robustness</strong>: Classification of machine-generated
+texts remains intact even on adversarial examples, i.e., text that is
+intentionally modified to avoid classification.</p></li>
+</ul>
+<h2 id="sec:fromScratch">Classifiers trained from Scratch</h2>
+<p>These classifiers are trained with the specific goal to detect
+machine-generated text. They tend to be relatively simple algorithms
+with all three examples basing their classification decision on only one
+feature.</p>
+<h3 id="bag-of-words-classification">Bag-of-words Classification</h3>
+<p>Solaiman et al. <span class="citation"
+data-cites="solaiman2019release"></span> describe a logistic regression
+detector on a tf-idf feature. The tf-idf measure is a combination of two
+independent measures: Term frequency tf and inverse document frequency
+idf. As a heuristic, it aims to describe the relative importance of a
+word in a collection of documents.</p>
+<p>Luhn <span class="citation" data-cites="luhn1957statistical"></span>
+observes that communication via natural language is based on notions.
+Notions are a bit of information that will transfer the intended meaning
+with a high probability. Structurally notions can be paragraphs,
+sentences, or simply words. The smaller the notion, the higher the
+probability that the meaning is a widely accepted or even objective
+truth. Words are regarded as an atomic notion and form the building
+block of more complex notions. The frequency of such an atomic bit of
+meaning is suitable to encode the containing document.</p>
+<div id="def:tf" class="definition">
+<p><strong>Definition 3.1</strong> (term frequency, Luhn <span
+class="citation" data-cites="luhn1957statistical"></span>). <em>Term
+frequency <span class="math inline">\(\mathrm{tf}(t,S)\)</span> is the
+<span class="math inline">\(\log_{10}\)</span> value of the raw <span
+class="math inline">\(\mathrm{count}(t,S)\)</span> of any given token
+<span class="math inline">\(t\)</span> in a sequence of tokens <span
+class="math inline">\(S\)</span>: <span
+class="math display">\[\mathrm{tf}(t,S) =
+                \begin{cases}
+                    1 + \log_{10} \cdot \mathrm{count}(t,S) &amp;
+\text{if $\mathrm{count}(t,S) &gt; 0$} \\
+                    0 &amp; \text{else .}
+                \end{cases}\]</span></em></p>
+</div>
+<p>The term inverse document frequency idf was introduced by Spärck
+Jones <span class="citation"
+data-cites="sparckjones1972statistical"></span>. The document frequency
+of a term would be the number of documents that this term occurs in. A
+term with a high document frequency when compared to the total number of
+documents in the collection carries little information about the
+document in which it is contained. The contrary is the case for a term
+<span class="math inline">\(t\)</span> with low document frequency <span
+class="math inline">\(\mathrm{df}(t)\)</span>. If one of these rare
+words occurs in a document it can be used as a discriminating
+feature.</p>
+<div id="def:idf" class="definition">
+<p><strong>Definition 3.2</strong> (inverse document frequency, Spärck
+Jones <span class="citation"
+data-cites="sparckjones1972statistical"></span>). <em>The inverse
+document frequency <span class="math inline">\(\mathrm{idf}(t)\)</span>
+measure of a term <span class="math inline">\(t\)</span> is the inverse
+of the number of documents in a collection that contain <span
+class="math inline">\(t\)</span>. This number is scaled by the number of
+documents in the collection <span class="math inline">\(n\)</span>:
+<span class="math display">\[\mathrm{idf}(t)= \log_{10} \left(
+\frac{n}{\mathrm{df}(t)} \right)\text{.}\]</span></em></p>
+</div>
+<p>The product of tf and idf yields the tf-idf measure. It is used as a
+weighting factor or a standalone feature in natural language
+processing.</p>
+<div class="definition">
+<p><strong>Definition 3.3</strong> (<span>tf-idf, Jurafsky and Martin
+<span class="citation" data-cites="jurafsky2024speech"></span></span>).
+<em>The <span class="math inline">\(\text{tf-idf}(t,S)\)</span> is the
+two measures given in definition <a href="#def:tf"
+data-reference-type="ref" data-reference="def:tf">15</a> and
+definition <a href="#def:idf" data-reference-type="ref"
+data-reference="def:idf">16</a> multiplied: <span
+class="math display">\[\text{tf-idf}(t,S) = \mathrm{tf}(t,S) \cdot
+\mathrm{idf}(t) \text{.}\]</span></em></p>
+</div>
+<p>The classifier presented by Solaiman et al. <span class="citation"
+data-cites="solaiman2019release"></span> is intended to work with GPT-2
+<span class="citation" data-cites="radford2019language"></span> as the
+generating model. The training data consisted of GPT-2 outputs and
+human-generated texts scraped from the web. The classifier was
+subsequently tested on samples that were equally likely to be
+machine-generated and human-generated. In this context a document
+represents a sample and the whole corpus of training data and the
+samples equates to the collection of documents. This allows to compute
+<span class="math inline">\(\text{tf-idf}(t,S)\)</span> for each token
+<span class="math inline">\(t\)</span> in the models vocabulary <span
+class="math inline">\(\mathcal{V}\)</span> and for each text <span
+class="math inline">\(S\)</span> in the training data. For a given text
+<span class="math inline">\(S\)</span>, this yields a vector with <span
+class="math inline">\(|\mathcal{V}|\)</span> entries: <span
+id="eq:tf-idf"><span class="math display">\[
+        \text{tf-idf}(S) = \big[ \text{tf-idf}(1,S), \text{tf-idf}(2,S),
+\dots, \text{tf-idf}(|\mathcal{V}|,S) \big] \text{.}\]</span></span></p>
+<p>The training process of the logistic regression classifier aims to
+fit the logistic function as defined in definition <a
+href="#def:sigmoid" data-reference-type="ref"
+data-reference="def:sigmoid">9</a>. The two classes human-generated and
+machine generated are mapped to values of <span
+class="math inline">\(\sigma(x)\)</span> approaching zero and one
+respectively. The input <span class="math inline">\(x\)</span> is the
+sum of an offset <span class="math inline">\(o\)</span> and the scalar
+product of a weights vector <span class="math inline">\(w\)</span> and
+the tf-idf vector for a given sample <span
+class="math inline">\(S\)</span>. This vector contains the unigram
+tf-idf measures. In their work Solaiman et al. <span class="citation"
+data-cites="solaiman2019release"></span> extend this vector with all
+bigram tf-idf measures of the sample. The probability of a sample <span
+class="math inline">\(d\)</span> to be machine-generated is then given
+as: <span class="math display">\[P\big(S \text{ is machine-generated}\,
+|\, \text{tf-idf}(S)\big) = \sigma \big( w \cdot \text{tf-idf}(S) + o
+\big) \text{.}\]</span> During the training process the weights vector
+<span class="math inline">\(w\)</span> and the offset <span
+class="math inline">\(o\)</span> are updated so that the probability of
+a correct classification of the text <span
+class="math inline">\(S\)</span> is maximized. A text <span
+class="math inline">\(S\)</span> is classified as machine-generated if
+<span class="math inline">\(\sigma \big(w \cdot
+\text{tf-idf}(S)\big)\)</span> is above a chosen threshold. Otherwise it
+is classified as human-generated.</p>
+<p>When using multinomial sampling and a temperature of one, Solaiman
+et al. <span class="citation" data-cites="solaiman2019release"></span>
+report classification accuracies between <span
+class="math inline">\(88\%\)</span> for the smallest <span
+class="math inline">\(124\)</span> million parameter model and <span
+class="math inline">\(74\%\)</span> for the largest <span
+class="math inline">\(1.5\)</span> billion parameter model. The
+detection accuracy increases to <span
+class="math inline">\(97\%\)</span> at <span
+class="math inline">\(124\)</span> million parameters and <span
+class="math inline">\(93\%\)</span> at <span
+class="math inline">\(1.5\)</span> billion parameters if a top-<span
+class="math inline">\(k\)</span> sampling strategy with <span
+class="math inline">\(k=40\)</span> is used. The authors report that
+longer sequences are easier to classify than shorter ones. They further
+speculate that a top-<span class="math inline">\(p\)</span> sampling
+strategy would yield a lower accuracy classification.</p>
+<div class="analysis">
+<p><strong>Analysis 3.1</strong>. <em>The discussed classifier can be
+considered a baseline for future work as it does not fulfill the
+desiderata proposed by Jawahar et al. <span class="citation"
+data-cites="jawahar2020automatic"></span>.</em></p>
+<p><em>The reported accuracies are highly dependent on the size of the
+generating model as well as the overall generating strategy.</em></p>
+<p><em>The efficiency of this scheme is good as the computation of
+tf-idf scores has a time complexity in <span
+class="math inline">\(O(|\mathcal{V}|)\)</span>. Training the logistic
+classifier can be done with very little explicit training data but would
+of course benefit from a larger set. If the detector is trained by the
+same organization that also trained the generator model, like it is the
+case for Solaiman et al. <span class="citation"
+data-cites="solaiman2019release"></span>, the required effort is reduced
+again. The same set of training data can be used to train the generator
+model’s weights and be used as human-generated labeled data for training
+the classifier.</em></p>
+<p><em>The detector is trained on frequencies of specific token and how
+they differ from a learned expectation in human-generated text. There is
+no comprehensive data on how this approach generalizes to different
+generators. The authors do, however, notice a drop in accuracy as the
+generator’s parameter count increases. They further note that increased
+randomness by using top-<span class="math inline">\(k\)</span> sampling
+with a larger <span class="math inline">\(k\)</span> reduces
+accuracy.</em></p>
+<p><em>The tf-idf vector is quite interpretable as it depicts exactly
+the tokens that identified the sample as either human- or
+machine-generated.</em></p>
+</div>
+<div class="remark">
+<p><strong>Remark 3.1</strong>. <em>A bag-of-words classification relies
+on statistical measures on the composition of a text. Grammar or meaning
+in the form of conditionality of a tokens occurrence are neglected. It
+is observed that certain tokens are used excessively in
+machine-generated texts when compared to a collection of human-generated
+texts. This apparent preference of the generating model for some tokens
+allows the detector to classify an arbitrary bag of tokens with an
+accuracy well above random. The diminishing accuracy of detection with
+larger parameter sizes of the generating model also hints at a possible
+fundamental issue with this approach: There is no intuitive reason why
+the token frequency distribution of a text generating model should
+significantly deviate from the human baseline it was trained on. This
+gap could be narrowing further with ever increasing parameter sizes and
+other qualitative improvements and might diminish entirely in the
+future.</em></p>
+</div>
+<h3 id="language-model-classification">Language Model
+classification</h3>
+<p>Lavergne et al. <span class="citation"
+data-cites="lavergne2008detecting"></span> make use of a detector
+language model to compute two different metrics on input samples. The
+first metric is the detector model’s perplexity PPL given the input
+text. The second metric is the relative entropy between the detector
+model’s prediction given its full context and its prediction using an
+intentionally truncated context. While the authors specifically use
+<span class="math inline">\(n\)</span>-gram language models both as the
+generators and the detectors of machine-generated texts, their approach
+of using a language models inherent understanding of a texts semantics
+and syntax does transfer to more sophisticated types of language models.
+A perplexity based classification is also a part of the current
+commercial <span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> detection offering GPTZero
+<span class="citation" data-cites="tian2023inside"></span>.</p>
+<p>In their experimentation Lavergne et al. <span class="citation"
+data-cites="lavergne2008detecting"></span> use <span
+class="math inline">\(n\)</span>-gram language models with <span
+class="math inline">\(n \in \{2,3,4\}\)</span> as generators and <span
+class="math inline">\(3\)</span>-gram and <span
+class="math inline">\(4\)</span>-gram models as detectors. These models
+are implemented with the SRILM toolkit <span class="citation"
+data-cites="stolcke2002srilm"></span>. The detector models are trained
+from scratch on one of three corpora of natural language or as in their
+final experiment on a large collection of English <span
+class="math inline">\(n\)</span>-grams from Google <span
+class="citation" data-cites="brants2006web"></span>. For each of the
+features, a threshold is learned on labeled data. The classification is
+tested on samples of two thousand and five thousand words. The quality
+of the classification is finally reported as <span
+class="math inline">\(F_1\)</span>-scores.</p>
+<p>For their first experiment they use perplexity as given in definition
+<a href="#def:ppl" data-reference-type="ref"
+data-reference="def:ppl">14</a> as an independent variable. The
+classifier is based on the assumption that human generated texts tends
+to have a lower perplexity count than machine generated ones. The
+authors report good detection performance with <span
+class="math inline">\(F_1\)</span>-scores between <span
+class="math inline">\(0.83\)</span> and <span
+class="math inline">\(0.97\)</span> for text generated by a <span
+class="math inline">\(2\)</span>-gram model. There is a slight
+improvement of <span class="math inline">\(0.03\)</span> when a five
+thousand word long sample is used instead of a two thousand words long
+one. This improved detection quality on longer samples can still be
+observed when the input texts are machine-generated with <span
+class="math inline">\(3\)</span> or <span
+class="math inline">\(4\)</span>-gram models but the scores in general
+drop significantly. The average score for these setups is <span
+class="math inline">\(0.37\)</span> with values ranging from <span
+class="math inline">\(0.21\)</span> in two cases to <span
+class="math inline">\(0.66\)</span> in one case.</p>
+<p>The second experiment is using a relative entropy measure between
+differently sized <span class="math inline">\(n\)</span>-grams as the
+classifying variable. The results from the first experiment suggest that
+a strictly higher order <span class="math inline">\(n\)</span>-gram
+model as the detector is needed for successful classification. The
+results also show that there seems to be a stark decline in detection
+performance when comparing the <span
+class="math inline">\(4\)</span>-gram detector and <span
+class="math inline">\(3\)</span>-gram generator to the <span
+class="math inline">\(3\)</span>-gram detector and <span
+class="math inline">\(2\)</span>-gram generator setting. This implies
+that an additional token of context carries significantly more
+information for a <span class="math inline">\(2\)</span>-gram model than
+for a <span class="math inline">\(3\)</span>-gram model. The authors
+theorize that the majority of semantic and syntactic relations are
+already covered by <span class="math inline">\(3\)</span>-grams. The
+design goal for the score to be used in the second experiment is hence
+to focus on those longer sequences that do contain additional
+information.</p>
+<p>Let <span class="math inline">\(P\)</span> be the probability
+distribution of an <span class="math inline">\(n\)</span>-gram model.
+The probability function for a token <span
+class="math inline">\(s_{i+1}\)</span> is then given as <span
+class="math inline">\(p\left(s_{i+1} | S_{i-n:i}\right)\)</span>.
+Similarly let <span class="math inline">\(Q\)</span> be the probability
+distribution of a smaller model with a context reduced by one. The
+probability for a token <span class="math inline">\(s\)</span> in <span
+class="math inline">\(Q\)</span> is then <span class="math inline">\(q
+\left(s_{i+1} | S_{i-n+1:i}\right)\)</span>. The Kullback-Leibler
+divergence as defined in definition <a href="#def:kl"
+data-reference-type="ref" data-reference="def:kl">13</a> between these
+two distributions measures the impact of one additional context token
+across all token in the vocabulary <span
+class="math inline">\(\mathcal{V}\)</span>. This measure is a non
+negative real number and only takes a zero value if the truncated token
+carries no information. It can be further broken down into a point-wise
+comparison for a single token <span
+class="math inline">\(s_{i+1}\)</span> as:</p>
+<p><span id="eq:pkl"><span class="math display">\[
+        D_{\mathrm{PKL}}(s_{i+1} || S_{i-n:i}) = p\left(s_{i+1} |
+S_{i-n:i}\right) \log \left( \\
+        \frac{p\left(s_{i+1} | S_{i-n:i}\right)}{q \left(s_{i+1} |
+S_{i-n+1:i}\right)}  \right) \text{.}\]</span></span></p>
+<p>A high <span class="math inline">\(D_{\mathrm{PKL}}\)</span> value
+for a token represents a high dependence on a larger context. This
+larger context would only be considered by a higher order model. If, on
+the other hand, a token <span class="math inline">\(t_{i+1} \in
+\mathcal{V}\)</span> with the same context but a higher relative entropy
+than the actual token <span class="math inline">\(s_{i+1}\)</span>
+exists, a longer range dependency between token <span
+class="math inline">\(s_{i+1}\)</span> and its context was violated.
+Assuming that humans tend to be better at respecting these longer ranged
+dependencies this would point to a machine-generated sample. The
+specific <span class="math inline">\(n\)</span>-gram <span
+class="math inline">\([s_{i+1}, S_{i-n:i}]\)</span> generates a penalty
+score of:</p>
+<p><span class="math display">\[\mathcal{S}^-(s, C_n) = \max_{t_{i+1}
+\in \mathcal{V}} D_{\mathrm{PKL}}(t_{i+1} || S_{i-n:i}) -
+D_{\mathrm{PKL}}(s_{i+1} || S_{i-n:i}) \text{.}\]</span></p>
+<p>The overall score of a sequence <span
+class="math inline">\(\mathcal{S}(S)\)</span> is defined as the average
+over all token <span class="math inline">\(s_{i+1} \in S\)</span> where
+the context <span class="math inline">\(S_{i-n:i}\)</span> is available.
+Hence the first <span class="math inline">\(n-1\)</span> token will be
+disregarded and a higher score means an increase of probability of the
+sample being machine-generated.</p>
+<p><span class="math display">\[\mathcal{S}^-(S, n) =
+\frac{1}{\text{len}(S)-n} \sum_{i = n}^{\text{len}(S)}
+\mathcal{S}^-(s_{i+1}, S_{i-n:i})\]</span></p>
+<p>The experiment for testing the penalty score <span
+class="math inline">\(\mathcal{S}\)</span> is setup identically to the
+authors’ first experiment. Three and four gram models are trained on
+different corpora of <span class="math inline">\(n\)</span>-grams and
+used to detect output from two, three, and four gram models. Similarly
+to the previous results there is a negative correlation between reported
+<span class="math inline">\(F_1\)</span>-score and order of the
+generating model. This correlation is higher when using a three gram
+model for detection. Achieved scores range from near perfect <span
+class="math inline">\(0.99\)</span> on <span
+class="math inline">\(2\)</span>-gram model generated texts to values
+around <span class="math inline">\(0.3\)</span> for three and four gram
+models. The correlation is weaker for <span
+class="math inline">\(4\)</span>-gram detector models. Interestingly the
+average <span class="math inline">\(F_1\)</span>-score for detecting a
+<span class="math inline">\(3\)</span>-gram model’s output with <span
+class="math inline">\(0.87\)</span> is slightly higher than the average
+score for <span class="math inline">\(2\)</span>-gram model output at
+<span class="math inline">\(0.85\)</span>. Detecting <span
+class="math inline">\(4\)</span>-gram model output with an equal sized
+detector model yields average <span
+class="math inline">\(F_1\)</span>-scores of <span
+class="math inline">\(0.58\)</span> for sequences of two thousand tokens
+and <span class="math inline">\(0.79\)</span> for longer five thousand
+tokens sequences. This is the main improvement over the perplexity based
+classifier tested in the first experiment.</p>
+<div class="analysis">
+<p><strong>Analysis 3.2</strong>. <em>The <span
+class="math inline">\(F_1\)</span>-scores provided by the authors
+indicate that both of the studied metrics primarily work for <span
+class="math inline">\(2\)</span>-gram generator models and <span
+class="math inline">\(3\)</span> or <span
+class="math inline">\(4\)</span>-gram detector models. In those cases
+the detection performance is close to <span
+class="math inline">\(100\%\)</span>. Detection is still possible for
+<span class="math inline">\(3\)</span>-gram models using a <span
+class="math inline">\(4\)</span>-gram detector and the relative entropy
+metric but performance drops to <span
+class="math inline">\(87\%\)</span>. Text generated by <span
+class="math inline">\(4\)</span>-gram models cannot be reliably detected
+by either metric.</em></p>
+<p><em>The detector models have been trained from scratch on corpora of
+up to <span class="math inline">\(1000\)</span> token. Since the
+detector model needs to be higher order than the generator model this
+approach is inherently biased towards the generating part in terms of
+efficiency. If the training data for generator models would approach the
+limits of availability, like it is the case for current <span
+data-acronym-label="llm" data-acronym-form="plural+short">llms</span>,
+it could even be impossible to acquire an even larger dataset for
+training a detector model.</em></p>
+<p><em>The generalizability of this detection approach is good as long
+as the generator model is a lower order <span
+class="math inline">\(n\)</span>-gram model. This approach relies solely
+on metrics that leverage the detector model’s inherent understanding of
+a sample text. The detection quality will, however, depend on the
+training data. A detector trained on a larger corpus yields better
+results as shown by Lavergne et al. <span class="citation"
+data-cites="lavergne2008detecting"></span>. This indicates that the
+probability distribution learned from these samples is more general and
+that more potential domain specific token compositions are
+encompassed.</em></p>
+<p><em>The classifier’s decision is not interpretable by humans since
+measures like perplexity or relative entropy are not guaranteed to match
+with human intuition. These measures are a function of the detector
+model’s probability distribution and are only considered as an aggregate
+number. Neither the aggregate measures value nor the threshold it is
+compared against carry intuitive meaning. The interpretability might be
+improved by reporting the argmax of the relative entropy measure for
+each token, i.e., the alternative token that scored the highest
+point-wise Kullback-Leibler divergence. This would showcase an
+alternative and might explain a classification decision.</em></p>
+<p><em>No adversarial changes to a generated output have been
+considered. The scheme does not rely on any one specific token but
+rather their composition. If the adversarial changes do not improve the
+texts quality to the level of the next highest order language model,
+this token composition will remain similar on aggregate. This approach
+can be regarded as robust against attacks.</em></p>
+</div>
+<div class="remark">
+<p><strong>Remark 3.2</strong>. <em>Using a language model in a
+classifier is a promising approach as this allows to evaluate the
+relations between the input tokens instead of just the tokens
+themselves. It is unclear at this moment how these results map to modern
+<span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> but the intuition that a
+larger and more capable model will reliably detect a smaller one seems
+valid.</em></p>
+<p><em>Furthermore the authors do not discuss different generating
+strategies or other variations in the setup. This is due to <span
+class="math inline">\(n\)</span>-gram language models being less
+variable in their generated output than other architectures. Increased
+randomness or samples outside the domain of the detector’s training data
+could reduce the scheme’s accuracy.</em></p>
+</div>
+<h2 id="sec:llmBased"><span data-acronym-label="llm"
+data-acronym-form="singular+abbrv">llm</span> based Classifiers</h2>
+<p>The following classifiers employ more capable <span
+data-acronym-label="llm" data-acronym-form="plural+short">llms</span>.
+This is required to match the significant increase in performance from
+more recent generator models.</p>
+<h3 id="sec:fineTuned">Fine-tuned classifiers</h3>
+<p>Classifiers in this section use language models that are fine-tuned
+for the task. This allows to leverage the extensive pre-training of the
+base models.</p>
+<h4 id="grover">Grover</h4>
+<p>Grover is a <span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> by Zellers et al. <span
+class="citation" data-cites="zellers2020defending"></span> trained on
+the task of generating news articles. This task is different to causal
+left-to-right text generation as a news article is not a single section
+of text but rather consists of a headline, a body, and metadata. The
+metadata is the domain where the article is published in, the names of
+the authors, and the date of publication. It is information that does
+not directly relate to the content of headline and text body but it does
+provide context and can affect the overall textual style. One field
+<span class="math inline">\(f \in \mathcal{F}\)</span> with <span
+class="math inline">\(\mathcal{F} = \{\text{domain}, \text{date},
+\text{authors}, \text{headline}, \text{body}\}\)</span> is the target
+for text generation while the other fields are concatenated to form a
+prompt. Each field <span class="math inline">\(f\)</span> is enclosed in
+the special tokens <span class="math inline">\(\langle \mathrm{start-}f
+\rangle\)</span> and <span class="math inline">\(\langle \mathrm{end-}f
+\rangle\)</span>. The target field is indicated by a single start token
+as the last token of the prompt. Text generation for the target field
+will continue until the matching end token is sampled. A field in the
+prompt can remain empty but any input is used to control and enhance the
+output in the target field.</p>
+<p>The model uses the same architecture as GPT2 <span class="citation"
+data-cites="radford2019language"></span> and is available as Grover-Base
+at <span class="math inline">\(124\)</span> million parameters,
+Grover-Large at <span class="math inline">\(355\)</span> million
+parameters, and Grover-Mega at <span class="math inline">\(1.5\)</span>
+billion parameters. The models are trained on RealNews <span
+class="citation" data-cites="zellers2020defending"></span>, a large
+corpus of metadata annotated news articles from <span
+class="math inline">\(5000\)</span> news domains. Evaluation on a split
+of the training data shows that Grover, with metadata provided, produces
+superior results to both Grover without metadata as well as GPT2. This
+is derived from a reduction in perplexity on the body field between
+<span class="math inline">\(0.6\)</span> and <span
+class="math inline">\(0.9\)</span> once metadata is available in the
+prompt to Grover and a reduction of <span
+class="math inline">\(9.2\)</span> and <span
+class="math inline">\(6.5\)</span> when compared to plain GPT2 output.
+The text quality also improves with size of the generating model as
+Grover-Mega produces the best perplexity value overall at <span
+class="math inline">\(8.7\)</span>. Human evaluation also shows Grover
+generated fake news to be only slightly less trustworthy than human fake
+news.</p>
+<p>Grover can be used as a classifier by prompting it with an article
+followed by the special token <span class="math inline">\(\langle
+\mathrm{CLS} \rangle\)</span>. After fine-tuning on a set of <span
+class="math inline">\(10\)</span> thousand RealNews article bodies and
+generated fake articles, Zellers et al. <span class="citation"
+data-cites="zellers2020defending"></span> report accuracies of up to
+<span class="math inline">\(99.8\%\)</span> with Grover-Mega as the
+classifier and Grover-Base as the generator. This value decreases to
+<span class="math inline">\(91.6\%\)</span> once the generating model is
+swapped with an equally sized Grover-Mega model. Smaller detector models
+fare worse. A Grover-Base detector achieves an accuracy of <span
+class="math inline">\(71.3\%\)</span> when classifying Grover-Mega
+output while still managing <span class="math inline">\(90\%\)</span> on
+a same-sized generator. This shows that detection accuracy correlates
+with the difference in size of generator and detector, as well as the
+size of the detector regardless of generator size. The authors also swap
+their detector models to BERT <span class="citation"
+data-cites="devlin2019bert"></span> and GPT2 <span class="citation"
+data-cites="radford2019language"></span> respectively. The results are
+worse but similar in structure to Grover based detection. This prompts
+the authors’ conclusion that a strong generator is also a strong
+post-hoc detector and that machine-generated text is best detected by
+the same model that also generated it.</p>
+<div class="analysis">
+<p><strong>Analysis 3.3</strong>. <em>The detecting accuracy of Grover
+is good. This however is only true if the generator model is not
+significantly larger than the detector, if there are thousands of
+examples from the exact generator, and preferably if the generator and
+detector models share the same architecture. As such this scheme
+requires substantial fine-tuning on individual generators and cannot be
+considered efficient nor generalizable. The results are not
+interpretable as the classification decision is based on hidden state.
+The authors do not experiment with malicious modifications to generated
+texts with the intend of avoiding correct classification but given the
+highly specialized nature of this detector it is unlikely to show great
+robustness under attack.</em></p>
+</div>
+<h3 id="sec:zeroShot">Zero-shot classification</h3>
+<p>Classifiers of this kind employ pre-trained language models without
+adapting them to the classification task at hand.</p>
+<h4 id="giant-language-model-test-room">Giant Language model Test
+Room</h4>
+<p>Gehrmann et al. <span class="citation"
+data-cites="gehrmann2019gltr"></span> use a language model to compute
+statistics on a given text. They are used to overlay information on the
+input text in a <span data-acronym-label="gui"
+data-acronym-form="singular+short">gui</span> that the authors call
+GLTR. This is intended to help a human user in classifying the text as
+either human- or machine-generated. The authors also test the measures
+in a logistic regression based classifier to validate their
+discriminative potential. They could theoretically be employed in an
+automated classification scheme.</p>
+<p>Given a text of <span class="math inline">\(n\)</span> token <span
+class="math inline">\(S_{1:n}\)</span> the GLTR statistics are</p>
+<ol>
+<li><p>the probability of a token <span class="math inline">\(s_{n+1}
+\in \mathcal(V)\)</span> given the previous <span
+class="math inline">\(n\)</span> token <span
+class="math inline">\(p(s_{n+1} | S_{1:n})\)</span>,</p></li>
+<li><p>the rank of token <span class="math inline">\(s_{n+1}\)</span>
+with regards to the assigned probability mass of the distribution <span
+class="math inline">\(p(s_{n+1} | S_{1:n})\)</span>, and</p></li>
+<li><p>the entropy of the predicted distribution <span
+class="math display">\[-\sum_{s_{n+1} \in \mathcal{V}} p(s_{n+1} |
+S_{1:n}) \log_2 \big( p(s_{n+1} | S_{1:n}) \big)
+\text{.}\]</span></p></li>
+</ol>
+<p>They are supposed to show whether tokens are predominantly sampled
+from the head of the classifier model’s distribution. The authors
+further hypothesize that this sampling pattern is true in all
+machine-generated texts. This method does not require access to the
+generating model but it relies on the assumption that the generating
+model’s distribution and the one from the model used in the classifier
+are similar. In fact this similarity needs to be greater than the
+similarity between generating model and a human’s natural
+distribution.</p>
+<p>Their testing was minimal but it indicated the usefulness of the tool
+in assisting human decision making. Automated classification was only
+tested for measures 1 and 2. A smaller <span
+class="math inline">\(117\)</span> million parameter GPT-2 <span
+class="citation" data-cites="radford2019language"></span> version was
+used to compute statistics on a small sample of <span
+class="math inline">\(50\)</span> human-generated and machine-generated
+texts each. The generating model was a bigger <span
+class="math inline">\(1.5\)</span> billion parameter version of GPT-2.
+This test showed AUC-ROC values of <span
+class="math inline">\(0.71\)</span> for the token probability measure
+(1) and <span class="math inline">\(0.87\)</span> for the token rank
+measure (2). A separate test with the bidirectional BERT model by Devlin
+et al. <span class="citation" data-cites="devlin2019bert"></span> as the
+classifying model yields <span class="math inline">\(0.7\)</span> for
+measure 1 and <span class="math inline">\(0.85\)</span> for measure 2.
+This indicates some robustness with regards to divergence of generating
+and classifying model – both in terms of size and architecture.</p>
+<div class="remark">
+<p><strong>Remark 3.3</strong>. <em>The GLTR tool aims to assist human
+decision making. It highlights certain peculiarities about a language
+model’s probability distribution and especially their decoding methods.
+The authors’ hypothesis that machine-generated text mainly consists of
+high probability token and that this is contrasted by humans often
+relying on synonyms and referring expressions is validated for their
+specific setting. This hypothesis is shared with other authors like
+Holtzman et al. <span class="citation"
+data-cites="holtzman2020curious"></span> but it is unclear whether these
+properties generalize to other language models, how they scale with
+bigger models, and how their distinctiveness changes when classifier
+model and generating model differ in architecture.</em></p>
+<p><em>The authors point to potential issues with this method should the
+generating models distribution be artificially changed. They
+specifically refer to hidden seeds that are used in the pseudo-random
+decoding process that in turn autoregressively modifies the probability
+distribution for future token. This is what is being done deliberately
+with the watermarking method. Hence, applying a watermark to a model’s
+output reduces the detection accuracy by other methods.</em></p>
+</div>
+<h4 id="sec:detectgpt">DetectGPT</h4>
+<p>Mitchell et al. <span class="citation"
+data-cites="mitchell2023detectgpt"></span> formulate the hypothesis that
+machine-generated text can be detected by the assigned probabilities to
+its perturbations according to a language model’s probability
+distribution <span class="math inline">\(p\)</span>. Given a
+machine-generated text <span class="math inline">\(S_{1:n}\)</span> and
+a minor perturbation thereof <span
+class="math inline">\(\widetilde{S}_{1:n}\)</span> sampled from a
+perturbation function <span
+class="math inline">\(\varphi(S_{1:n})\)</span> then the difference
+between the original sequence and the perturbed sequence is positive on
+average. This measure is termed <em>perturbation discrepancy</em> by the
+authors: <span class="math display">\[d(S_{1:n}, p, \varphi) = \log
+p(S_{1:n}) - \mathbb{E}_{\widetilde{S}_{1:n} \sim \varphi(S_{1:n})} \log
+p(\widetilde{S}_{1:n})\text{.}\]</span> The measure for a
+human-generated sequence would tend to be under the hypothesis. This is
+similar to the working hypothesis of Gehrmann et al. <span
+class="citation" data-cites="gehrmann2019gltr"></span> that states that
+language models primarily sample from the head of their probability
+distribution. If the machine-generated text is sampled only from high
+probability token than any perturbation should yield a lower probability
+on average since this probability is computed by the model itself. If
+the hypothesis is true, the sequence <span
+class="math inline">\(S_{1:n}\)</span> is classified as <span
+class="math display">\[\text{DetectGPT}(S_{1:n}) =
+        \begin{cases}
+            \text{machine-generated} &amp; \text{if }
+d(S_{1:n},p,\varphi) &gt; 0 \\
+            \text{human-generated} &amp; \text{otherwise.}
+        \end{cases}\]</span></p>
+<p>For their experiments the authors create perturbations by masking out
+<span class="math inline">\(15\%\)</span> of the <span
+class="math inline">\(n\)</span> token in <span
+class="math inline">\(S_{1:n}\)</span>. They evaluate masking spans of
+<span class="math inline">\(2\)</span>, <span
+class="math inline">\(5\)</span>, and <span
+class="math inline">\(10\)</span> consecutive tokens, finding <span
+class="math inline">\(2\)</span>-gram token spans to perform best. The
+authors use a T5 <span class="citation"
+data-cites="raffel2023exploring"></span> model to fill in the masks with
+newly sampled token.</p>
+<p>Mitchell et al. <span class="citation"
+data-cites="mitchell2023detectgpt"></span> validate DetectGPT across a
+variety of domains. When using medium sized models between <span
+class="math inline">\(1.5\)</span> and <span
+class="math inline">\(20\)</span> billion parameters for generation and
+detection, AUC-ROC measures above <span
+class="math inline">\(0.92\)</span> on average are reported. A larger
+175 billion parameter model still yields AUC-ROC of <span
+class="math inline">\(0.83\)</span> on average across different domains.
+The above measures are results from white-box experiments, i.e., the
+same model was used to generate the sample text and is used to compute
+the probabilities for it and its perturbations. This is a strong
+assumption for a post-hoc detection scheme as this means either
+open-sourcing the model or providing a detection <span
+data-acronym-label="api" data-acronym-form="singular+short">api</span>.
+The latter could be considered proactive and blurs the line to detection
+methods like watermarking in section <a href="#sec:watermarking"
+data-reference-type="ref" data-reference="sec:watermarking">4.2</a> and
+retrieval in section <a href="#sec:retrieval" data-reference-type="ref"
+data-reference="sec:retrieval">4.1</a>. The authors provide some AUC-ROC
+measures for the black-box setting where the generating model is not
+necessarily the same as the detecting model. These results are not
+comprehensive but decreases in AUC-ROC of over <span
+class="math inline">\(30\)</span> percentage points in the worst case
+show that DetectGPT is best suited for a white-box setup.</p>
+<div class="analysis">
+<p><strong>Analysis 3.4</strong>. <em>DetectGPT yields good accuracy in
+the ideal setting. As only the aggregated AUC-ROC values are reported no
+conclusions as to the relation between TPR and FPR can be drawn. The
+results are only achieved under assumption of white-box model access.
+Generating perturbations for the detection mechanism to work is
+expensive. Up to <span class="math inline">\(100\)</span> perturbations
+could be used to achieve the desired classification accuracy. The
+computational budget will be higher for detecting than for generating.
+Hence this method cannot be considered efficient. It is also not
+generalizable as a violation of the white-box assumption is shown to
+have significant negative impact on accuracy. The classification
+decision is interpretable. It is intuitive that a language model assigns
+the highest value to the sequence it actually sampled rather than any
+perturbation thereof. The method is not robust to adversarial action.
+Paraphrases are shown to negatively impact the methods performance and
+the white-box setup makes it especially vulnerable to targeted
+manipulation.</em></p>
+</div>
+<h1 id="chap:proactive">Proactive Methods</h1>
+<p>This class of detection methods requires action by the model owner.
+The various post-hoc methods rely on generation artifacts as inherent
+side effects of a language model’s text generation. These statistical
+artifacts are the result of differences in the underlying probability
+distributions from which humans and machines generate texts. With ever
+increasing quality of <span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> generated texts it is
+unclear whether such a difference in distributions is a lasting
+differentiator. As shown by Sadasivan et al. <span class="citation"
+data-cites="sadasivan2023aigenerated"></span> there is a theoretical
+limit to the performance of post-hoc detectors.</p>
+<p>Let <span class="math inline">\(S\)</span> be a sequence of token and
+<span class="math inline">\(\mathcal{L}\)</span> be a set of all such
+sequences that are valid and meaningful to humans. Let further <span
+class="math inline">\(\mathcal{H}(S)\)</span> be the set of paraphrases
+<span class="math inline">\(S&#39;\)</span> with similar meaning so that
+<span class="math inline">\(\forall S&#39; \in \mathcal{H}(S): S&#39;
+\simeq S \land S&#39; \in \mathcal{L}\)</span>. A similarly defined set
+<span class="math inline">\(\mathcal{M}(S)\)</span> contains all
+sequences <span class="math inline">\(\hat{S}\)</span> that can be
+generated from a <span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> and that are similar to
+<span class="math inline">\(S\)</span>. Assuming that all sequences
+<span class="math inline">\(\hat{S}\)</span> are in <span
+class="math inline">\(\mathcal{L}\)</span>, i.e., are meaningful to
+humans, <span class="math inline">\(\mathcal{M}(S) \subseteq
+\mathcal{H}(S)\)</span> follows. If <span
+class="math inline">\(|\mathcal{M}(S)| \ll |\mathcal{H}(S)|\)</span> the
+language model only represents a fraction of the true probability
+distribution of <span class="math inline">\(\mathcal{L}\)</span>. The
+output is less nuanced than natural language and, as a consequence,
+includes differentiating artifacts. If on the other hand <span
+class="math inline">\(|\mathcal{M}(S)|\)</span> and <span
+class="math inline">\(|\mathcal{H}(S)|\)</span> are similar, reliable
+post-hoc detection becomes harder as most of the possible expressions in
+<span class="math inline">\(\mathcal{L}\)</span> are part of <span
+class="math inline">\(\mathcal{M}(S) \cap \mathcal{H}(S)\)</span>. The
+quality of a detector <span class="math inline">\(D\)</span> measured in
+terms of AUC-ROC can be bound by the <em>total variation distance</em>
+between the true probability distribution and the approximation of the
+language model.</p>
+<div class="definition">
+<p><strong>Definition 4.1</strong> (total variation distance). <em>Let
+<span class="math inline">\(p\)</span> and <span
+class="math inline">\(q\)</span> be probability distributions defined on
+the same sample space <span class="math inline">\(\mathcal{X}\)</span>.
+The total variation distance between <span
+class="math inline">\(p\)</span> and <span
+class="math inline">\(q\)</span> is then defined as the maximum absolute
+distance between the probabilities of the different distributions
+assigned to the same event <span class="math inline">\(x \in
+\mathcal{X}\)</span>: <span class="math display">\[\delta(p,q) = \sup_{x
+\in \mathcal{X}} |p(x) - q(x)|\]</span></em></p>
+</div>
+<div class="theorem">
+<p><strong>Theorem 4.1</strong> (Theorem 1 <span class="citation"
+data-cites="sadasivan2023aigenerated"></span>). <em>Let <span
+class="math inline">\(\mathcal{M}\)</span> be a language models
+probability distribution and <span
+class="math inline">\(\mathcal{H}\)</span> be the human baseline. The
+AUC-ROC of a detector <span class="math inline">\(D\)</span> that
+classifies an input text as either machine-generated, i.e., sampled from
+<span class="math inline">\(\mathcal{M}\)</span> or human-generated is
+bounded by the total variation distance of <span
+class="math inline">\(\mathcal{M}\)</span> and <span
+class="math inline">\(\mathcal{H}\)</span> as <span
+id="eq:impossible"><span class="math display">\[
+            \textnormal{AUC-ROC}(D) \leq \frac{1}{2} +
+\delta(\mathcal{M}, \mathcal{H}) - \frac{\delta(\mathcal{M},
+\mathcal{H})^2}{2} \text{.}\]</span></span></em></p>
+</div>
+<div class="proof_sketch">
+<p>The ROC is a plot of a detector’s true positive and false positive
+rates for any threshold level <span class="math inline">\(\tau\)</span>.
+The quality of the detector <span class="math inline">\(D\)</span> at
+threshold <span class="math inline">\(\tau\)</span> is the difference
+<span class="math inline">\(\mathrm{TPR}_{\tau} -
+\mathrm{FPR}_{\tau}\)</span>. The absolute value of that difference is
+bound by the total variation distance of the models distribution <span
+class="math inline">\(\mathcal{M}\)</span> and the human distribution
+<span class="math inline">\(\mathcal{H}\)</span>: <span
+class="math display">\[\begin{split}
+            \left| \mathrm{TPR}_{\tau} - \mathrm{FPR}_{\tau} \right|
+                &amp; = \left| P_{S \sim \mathcal{M}}\big( D(S) \geq
+\tau \big) - P_{S \sim \mathcal{H}}\big( D(S) \geq \tau \big)\right| \\
+                &amp; \leq \delta(\mathcal{M}, \mathcal{H})
+        \end{split}\]</span> Using <span
+class="math inline">\(\mathrm{TPR}_{\tau} \leq 1\)</span> and
+integrating over the resulting inequality <span
+class="math display">\[\mathrm{TPR}_{\tau} \leq \min
+\big(\mathrm{FPR}_{\tau} + \delta(\mathcal{M}, \mathcal{H}), 1
+\big)\]</span> yields the statement in equation <a href="#eq:impossible"
+data-reference-type="ref" data-reference="eq:impossible">4.2</a>.</p>
+</div>
+<p>Contrary to the post-hoc detection approach, the required information
+for detection is created proactively by the methods presented in this
+section. The information can either be embedded into the text itself or
+be stored separately. The prior is termed watermarking and is discussed
+in section <a href="#sec:watermarking" data-reference-type="ref"
+data-reference="sec:watermarking">4.2</a>. The latter is referred to as
+zero-watermarking in Rizzo et al. <span class="citation"
+data-cites="rizzo2019finegrain"></span> as no information is contained
+in the actual text. Another synonym for this method is
+<em>retrieval</em> as the relevant information is stored by the model
+owner or another trusted third party in a database and has to be
+retrieved from there. This approach is discussed in section <a
+href="#sec:retrieval" data-reference-type="ref"
+data-reference="sec:retrieval">4.1</a>.</p>
+<h2 id="sec:retrieval">Retrieval</h2>
+<p>Krishna et al. <span class="citation"
+data-cites="krishna2023paraphrasing"></span> show that both watermarking
+and post-hoc detection schemes are vulnerable to <em>paraphrasing</em>.
+The paraphrasing attack aims to modify a machine-generated text to such
+a degree that it will not be detected anymore. The original text is
+obtained from a language model that is not controlled by the attacker.
+The text is then altered by reordering and replacing tokens while
+maintaining input semantics.</p>
+<p>This can be done in a variety of ways. A general purpose <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>
+could be prompted to paraphrase previous output of the same model or
+another model’s output in a single-shot approach. As noted by Krishna
+et al. <span class="citation"
+data-cites="krishna2023paraphrasing"></span> this would likely yield
+high quality paraphrases suitable for avoiding post-hoc detection. This
+approach would, however, be easily defended against if the paraphrase
+itself would be watermarked. The authors also show that manual
+paraphrases are very hard to detect. This is less of a concern since the
+process cannot be automated and is hence mostly restricted to individual
+attackers. Due to the involved human effort it also blurs the
+differentiating line between the human- and machine-generated class. A
+local language model owned by the attacker is therefore identified as
+the most pressing concern. Krishna et al. <span class="citation"
+data-cites="krishna2023paraphrasing"></span> specifically use a 11
+billion parameter <span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> fine-tuned on the
+objective of sensibly paraphrasing text. Sadasivan et al. <span
+class="citation" data-cites="sadasivan2023aigenerated"></span> use a
+smaller 222 million parameter model originally trained for summarization
+by Zhang et al. <span class="citation"
+data-cites="zhang2020pegasus"></span> in similar work. They also show
+the effectiveness of recursive paraphrases, i.e., incrementally
+modifying the original text while prompting a detector for feedback. The
+following section focuses on the attacking model by Krishna et al. <span
+class="citation" data-cites="krishna2023paraphrasing"></span> and the
+associated proposed retrieval based defense.</p>
+<h4 id="the-paraphrasing-model">The Paraphrasing Model</h4>
+<p>The authors use a fine-tuned version of the <span
+class="smallcaps">T5-XXL</span> model by Raffel et al. <span
+class="citation" data-cites="raffel2023exploring"></span> that they call
+Dipper. The model aims to paraphrase texts on a paragraph level while
+also considering additional context like a prompt and two control
+variables. The control variables are <em>lexical diversity</em> <span
+class="math inline">\(c_L\)</span> and <em>order diversity</em> <span
+class="math inline">\(c_O\)</span>. Both are provided in terms of
+percentages.</p>
+<div id="def:cl" class="definition">
+<p><strong>Definition 4.2</strong> (lexical diversity). <em>A measure of
+the relation of token co-occurrence in both the original sequence <span
+class="math inline">\(S_{1:n}\)</span> and its paraphrase <span
+class="math inline">\(P_{1:m}\)</span>. Using <span
+class="math inline">\(T = \{s_i: s_i \in S_{1:n} \cap P_{1:m}\}\)</span>
+as a bag of token that appear in the original and in the paraphrase,
+this yields: <span class="math display">\[c_L(S_{1:n}, P_{1:m}) = 100 -
+\frac{|T|}{n} \text{.}\]</span></em></p>
+</div>
+<div id="def:co" class="definition">
+<p><strong>Definition 4.3</strong> (order diversity, Kendall <span
+class="math inline">\(\tau\)</span> distance <span class="citation"
+data-cites="kendall1938new"></span>). <em>A measure to compare the
+ordering of common token in the original sequence <span
+class="math inline">\(S_{1:n}\)</span> and the paraphrase <span
+class="math inline">\(P_{1:m}\)</span>. Let <span
+class="math inline">\(S^*\)</span> and <span
+class="math inline">\(P^*\)</span> each be a list of tokens from a
+shared vocabulary and length <span
+class="math inline">\(\text{min}(n,m)\)</span>. <span
+class="math inline">\(S^*\)</span> contains every token from <span
+class="math inline">\(S_{1:n}\)</span> except for those that have
+potentially been truncated or are not also part of <span
+class="math inline">\(P_{1:m}\)</span>. <span
+class="math inline">\(P^*\)</span> contains every token from <span
+class="math inline">\(P_{1:m}\)</span> except for those that have
+potentially been truncated or are not also part of <span
+class="math inline">\(S_{1:n}\)</span>. Let further <span
+class="math inline">\(\mathcal{P}\)</span> be a set of index tuples
+<span class="math inline">\(\{i,j\}\)</span> representing distinct token
+pairs <span class="math inline">\(\{s_i, s_j\}\)</span> in <span
+class="math inline">\(S^*\)</span> and <span
+class="math inline">\(\text{index}(P^*,x)\)</span> be a function that
+returns the index of token <span class="math inline">\(x\)</span> in
+<span class="math inline">\(P^*\)</span> assuming <span
+class="math inline">\(x \in P^*\)</span>. The Kendall tau distance
+between <span class="math inline">\(S^*\)</span> and <span
+class="math inline">\(P^*\)</span> is the sum of all token pairs that
+occur in opposite order <span class="math display">\[K_{\tau}(S^*, P^*)
+= \sum_{\{i,j\} \in P, i &lt; j} k_{i,j}(S^*,P^*)\]</span> where <span
+class="math inline">\(k_{i,j}(S^*,P^*)\)</span> is a helper function so
+that <span class="math display">\[k_{i,j}(S^*,P^*) =  
+            \begin{cases}
+                0 \text{ if } \text{index}_{P^*}(s_i) &lt;
+\text{index}_{P^*}(s_j) \\
+                1 \text{ if } \text{index}_{P^*}(s_i) &gt;
+\text{index}_{P^*}(s_j) \text{.} \\
+            \end{cases}\]</span> The Kendall tau distance takes values
+between <span class="math inline">\(0\)</span> if the lists <span
+class="math inline">\(S^*\)</span> and <span
+class="math inline">\(P^*\)</span> are identically ordered and <span
+class="math inline">\(\frac{1}{2} \cdot \text{min}(n,m) \cdot \big(
+\text{min}(n,m)-1 \big)\)</span> if the two lists are reversed. The
+order diversity is then given as the normalized Kendall tau distance:
+<span class="math display">\[c_O(S_{1:n},P_{1:m}) = 100 - \frac{2 \cdot
+K_{\tau}(S^*, P^*)}{\text{min}(n,m) \cdot \big( \text{min}(n,m) - 1
+\big)} \cdot 100 \text{.}\]</span></em></p>
+</div>
+<p>Krishna et al. <span class="citation"
+data-cites="krishna2023paraphrasing"></span> use two different English
+translations of originally non-English novels and treat them as
+paraphrases during training of their Dipper model. One translation is
+considered the original <span class="math inline">\(S\)</span> and one
+its paraphrase <span class="math inline">\(P\)</span>. Each sequence
+consists of a list of sentences so that <span class="math inline">\(S =
+(S&#39;_1, S&#39;_2, S&#39;_3, \dots)\)</span> and <span
+class="math inline">\(P = (P&#39;_1, P&#39;_2, P&#39;_3,
+\dots)\)</span>. Since the different versions may vary in the number of
+sentences used, an algorithm to align pairs of sentences with the same
+meaning across the versions is needed. This is done by computing a
+similarity score for each sentence and then group them into alignment
+pairs by maximizing the pairs similarity. The result is a set <span
+class="math inline">\(A\)</span> of alignment pairs where each pair
+consists of one or more sentences from <span
+class="math inline">\(S\)</span> and <span
+class="math inline">\(P\)</span> respectively.</p>
+<div id="def:simsp" class="definition">
+<p><strong>Definition 4.4</strong> (SentencePiece semantic similarity).
+<em>The similarity of two sentences <span
+class="math inline">\(S&#39;\)</span> and <span
+class="math inline">\(P&#39;\)</span> is a value in <span
+class="math inline">\([0,1]\)</span> and is computed as the cosine
+similarity <span class="math display">\[\text{sim}(S&#39;,P&#39;) =
+\frac{S&#39; \cdot P&#39;}{||S&#39;|| \cdot ||P&#39;||}\]</span> where
+<span class="math inline">\(S&#39;\)</span> and <span
+class="math inline">\(P&#39;\)</span> are a fixed size vector embeddings
+of the respective sentence. The embedding is the average of an embedding
+model <span class="math inline">\(e(.)\)</span> applied to every token
+in a sentence so that <span id="eq:embedd"><span class="math display">\[
+            S&#39; = \frac{1}{|S&#39;|)} \sum_{i=1}^{|S&#39;|} e(q_i)
+\text{.}\]</span></span> The metric is referred to as <span
+class="math inline">\(\mathrm{sim}_{\mathrm{SP}}\)</span> if the
+encodings of the SentencePiece tokenizer described by Kudo and
+Richardson <span class="citation"
+data-cites="kudo2018sentencepiece"></span> are used as the
+implementation of <span class="math inline">\(e(.)\)</span>.</em></p>
+</div>
+<p>They select a subset of these alignment pairs and replace the
+selected sentences in the original with their paraphrase sentences.
+Three paraphrase sentences are shuffled randomly and inserted into the
+original for each training iteration. The paraphrased section is marked
+with the special token <span class="math inline">\(\langle \mathrm{p}
+\rangle\)</span> at the beginning and with <span
+class="math inline">\(\langle \backslash \mathrm{p} \rangle\)</span> at
+the end. The control variables <span class="math inline">\(c_L\)</span>
+and <span class="math inline">\(c_O\)</span> are computed as per
+definitions <a href="#def:cl" data-reference-type="ref"
+data-reference="def:cl">19</a> and <a href="#def:co"
+data-reference-type="ref" data-reference="def:co">20</a> and are
+prepended in plain text form. Given the alignment pairs <span
+class="math inline">\(\{S&#39;_4, (P&#39;_3,P&#39;_4)\}\)</span> and
+<span class="math inline">\(\{S&#39;_5, P&#39;_5\}\)</span> this yields
+a prompt sequence to Dipper of the form <span
+class="math display">\[\text{prompt}=\big( \text{&quot;lex}=c_l \text{,
+order}=c_o \text{&quot;},S&#39;_1,S&#39;_2,S&#39;_3,\langle \mathrm{p}
+\rangle,P&#39;_5,P&#39;_3,P&#39;_4,\langle \backslash \mathrm{p}
+\rangle,S&#39;_6 \big) \text{.}\]</span> The loss for each step is
+computed based on the original sentences <span
+class="math inline">\(S&#39;_4\)</span> and <span
+class="math inline">\(S&#39;_5\)</span>.</p>
+<h4 id="effects-on-detectability">Effects on Detectability</h4>
+<p>Three different language models are used to generate sequences of at
+least <span class="math inline">\(300\)</span> token. The models are
+GPT2-XL <span class="citation" data-cites="radford2019language"></span>
+with <span class="math inline">\(1.5\)</span> billion parameters, an OPT
+model with <span class="math inline">\(13\)</span> billion parameters
+<span class="citation" data-cites="zhang2022opt"></span>, and a <span
+class="math inline">\(175\)</span> billion parameters version of GPT-3
+<span class="citation" data-cites="brown2020language"></span>. These
+sequences are created as open-ended generations following a two-sentence
+prompt or as the answer of a long-form question answering task. The
+prompts and the questions are taken from Wikipedia and Reddit
+respectively and the real continuations and answers are kept for
+evaluating the classification accuracy.</p>
+<p>The paraphrases created by Dipper are evaluated on their detection
+accuracy and their semantic similarity with the original language model
+generation. The detection accuracy in this case is the true positive
+rate with a false positive rate pegged at <span
+class="math inline">\(1\%\)</span>. Semantic similarity is measured
+based on the similarity of SentencePiece encodings as defined in
+definition <a href="#def:simsp" data-reference-type="ref"
+data-reference="def:simsp">21</a>.</p>
+<p>The watermarking scheme by Kirchenbauer et al. <span class="citation"
+data-cites="kirchenbauer2023watermark"></span> described in section <a
+href="#sec:whileGeneration" data-reference-type="ref"
+data-reference="sec:whileGeneration">4.2.3</a> achieves almost perfect
+accuracy for unperturbed language model output. Watermarked output from
+GPT2-XL and OPT-13B is detected as such with a probability between <span
+class="math inline">\(99.9\%\)</span> and <span
+class="math inline">\(100\)</span> at a false positive rate of <span
+class="math inline">\(1\%\)</span>. This is true for both continuations
+from the open-ended generation task as well as the long-from question
+answering task. As the GPT-3 model was only accessible via <span
+data-acronym-label="api" data-acronym-form="singular+short">api</span>
+no watermark could be applied. The true positive rate is reduced once
+the original output is paraphrased. With a lexical diversity set to
+<span class="math inline">\(c_L = 20\)</span> accuracies drop between
+<span class="math inline">\(1.1\)</span> and <span
+class="math inline">\(3.7\)</span> percentage points. The detection
+accuracy is negatively correlated with increases in lexical diversity
+and order diversity of the paraphrase and reach a low of <span
+class="math inline">\(51.4\%\)</span> at <span
+class="math inline">\(c_L=60\)</span> and <span
+class="math inline">\(c_O=60\)</span> with OPT-13B for the question
+answering task. The accuracy for detecting long-form question answers is
+generally lower than for open-ended text generations with a delta of
+<span class="math inline">\(1.95\%\)</span> on average for OPT-13B and
+<span class="math inline">\(1.88\%\)</span> for GPT2-XL. Additionally,
+the detection accuracy for the larger OPT-13B model is consistently
+lower across all settings than for the smaller GPT2-XL model.</p>
+<p>Post-hoc detection shows similar relations between language model
+size and amount of controlled diversity in the paraphrase on one side
+and reported true positive rates on the other. This is showcased by the
+data for the DetectGPT classifier by Mitchell et al. <span
+class="citation" data-cites="mitchell2023detectgpt"></span> described in
+section <a href="#sec:detectgpt" data-reference-type="ref"
+data-reference="sec:detectgpt">3.2.2</a>. Original output from GPT2-XL
+is detected with a probability between <span
+class="math inline">\(70.3\%\)</span> for open-ended generation and
+<span class="math inline">\(74.9\%\)</span> for question answering. This
+range is dropped to <span class="math inline">\(14.3\%\)</span> and
+<span class="math inline">\(29.8\%\)</span> for the bigger OPT-13B
+model. The detection accuracy for slightly paraphrased OPT-13B output at
+<span class="math inline">\(c_L=20\)</span> only reaches <span
+class="math inline">\(3.3\%\)</span> for open-ended generation and <span
+class="math inline">\(15.0\%\)</span> for question answering. The values
+for paraphrased GPT2-XL output remain at higher levels but the decline
+with an increase in paraphrase diversity is of a similar magnitude. They
+are approaching <span class="math inline">\(0\)</span> for OPT-13B at
+the highest diversity setting <span
+class="math inline">\(c_L=60,c_O=60\)</span>. The significantly bigger
+GPT-3 model gets a <span class="math inline">\(0\%\)</span> TPR at <span
+class="math inline">\(1\%\)</span> FPR even for unperturbed output.</p>
+<p>It is noticeable that the question answering task yields a generally
+higher detection accuracy than the open-ended generation task under
+post-hoc detection. This is contrary to the results under the
+watermarking scheme.</p>
+<h4 id="the-retrieval-defence">The Retrieval Defence</h4>
+<p>Krishna et al. <span class="citation"
+data-cites="krishna2023paraphrasing"></span> also present a classifier
+for machine-generated text that is motivated by the relative
+effectiveness of the above described paraphrase attack on other
+detection mechanisms. Their scheme assumes that the model is only
+accessible via a controlled <span data-acronym-label="api"
+data-acronym-form="singular+short">api</span>. The operators of that
+<span data-acronym-label="api"
+data-acronym-form="singular+short">api</span> need to store every
+generated output from their model in a database. They further need to
+provide an endpoint that allows to upload text for classification. The
+text is classified as machine-generated if a similarity measure between
+the text and at least one entry in the database exceeds a threshold.
+This method does not need access to the models post-processing and
+decoding like it is the case for generative watermarking in section <a
+href="#sec:whileGeneration" data-reference-type="ref"
+data-reference="sec:whileGeneration">4.2.3</a>. A classification
+decision by this method only considers language models whose output is
+archived and accessible via a database.</p>
+<p>An output sequence <span class="math inline">\(S_n\)</span> is
+generated by repeatedly decoding a models probability distribution based
+on the previously generated sequence starting with the original prompt
+<span class="math inline">\(S_p\)</span>. This is described in algorithm
+<a href="#alg:decoding" data-reference-type="ref"
+data-reference="alg:decoding">1</a> and yields a concatenation of the
+prompt sequence <span class="math inline">\(S_p\)</span> and the
+sequence of generated token <span class="math inline">\(S_g\)</span>:
+<span class="math inline">\(S_n = S_p \oplus S_g\)</span>. The database
+is constructed as the set of all <span class="math inline">\(N\)</span>
+generated text sequences <span class="math display">\[S = \left[
+S_{1:n_1}^{(1)}, S_{1:n_2}^{(2)}, \dots \right] \text{.}\]</span> For
+every text <span class="math inline">\(P\)</span> submitted for
+classification, the similarity score between it and every database entry
+<span class="math inline">\(S_{n_i}^{(i)} \in S\)</span> is computed.
+The maximum over all similarity scores is compared to the classification
+threshold <span class="math inline">\(\tau\)</span>. If <span
+class="math display">\[\max_{i} \, \mathrm{sim} \left( S_{n_i}^{(i)}, P
+\right) &gt; \tau\]</span> the text is classified as machine-generated.
+It is labeled as human text otherwise.</p>
+<p>The authors evaluate two different similarity metrics. The first is
+the same <span class="math inline">\(\mathrm{sim}_{\mathrm{SP}}\)</span>
+metric based on SentencePiece encodings that is used to align sentences
+in the preprocessing of the data for fine-tuning. The second metric
+<span class="math inline">\(\mathrm{sim}_{\mathrm{BM}25}\)</span> makes
+use of the idf based ranking score BM25 as presented by Robertson and
+Zaragoza <span class="citation"
+data-cites="robertson2009probabilistic"></span>. The latter is found to
+be more effective for the retrieval task.</p>
+<p>The detection accuracy at a fixed false positive rate of <span
+class="math inline">\(1\%\)</span> of the retrieval based classifier is
+significantly improved over watermarking and post-hoc detection. On a
+database of 9 thousand generated sequences from the question answering
+task pooled from all three models, accuracies of <span
+class="math inline">\(95.2\%\)</span> for GPT2-XL, <span
+class="math inline">\(94.4\%\)</span> for OPT-13B, and <span
+class="math inline">\(96\%\)</span> for GPT-3 are reported on the
+hardest perturbation setting of <span
+class="math inline">\(c_L=60,c_O=60\)</span>. The value for GPT-3 is
+outstanding as it is the highest reported accuracy on the largest model
+of the set. This is in stark contrast to the <span
+class="math inline">\(0\%\)</span> reported for DetectGPT. The accuracy
+for the open-ended generation is less with values of <span
+class="math inline">\(78.7\%\)</span> for GPT2-XL, <span
+class="math inline">\(79.1\%\)</span> for OPT-13B, and <span
+class="math inline">\(37.4\%\)</span> for GPT-3. These values are still
+an improvement of around <span class="math inline">\(20\)</span>
+percentage point over watermarking, the next best alternative.</p>
+<div class="remark">
+<p><strong>Remark 4.1</strong>. <em>Retrieval is a promising scheme for
+detecting machine-generated text. It shows unprecedented performance
+under the paraphrase attack but also faces issues when scaling both the
+language model size as well as the size of the database holding previous
+generations. The inadequate detection accuracy for open-ended
+generations by the 175 billion parameter GPT-3 model signify challenges
+with larger language models. This is a shared concern with other
+detection methods and, as the authors note, can likely be countered with
+improved similarity scores. Improving the encoding method with better
+and more training data and fine-tuning on paraphrased or otherwise
+perturbed sequences could yield embeddings that better represent the
+models true distribution and thus creates a more accurate similarity
+score.</em></p>
+<p><em>Scaling the database appears to be a more general problem. The
+authors study relatively small database sizes. Most of their experiments
+have been done on only <span class="math inline">\(6\)</span> and <span
+class="math inline">\(9\)</span> thousand generations respectively. They
+do experiment with a database of one to <span
+class="math inline">\(15\)</span> million generations of which they
+create two thousand paraphrases. In the best case the detection accuracy
+decreases by <span class="math inline">\(1\%\)</span> when working on
+the <span class="math inline">\(15\)</span> million dataset compared to
+the one million dataset. The authors themselves note that this is still
+a relatively small amount of samples as they assume popular <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>
+<span data-acronym-label="api"
+data-acronym-form="plural+short">apis</span> to serve millions of
+queries a day. Assuming a linear relationship between database size and
+<span class="math inline">\(1.25\)</span> million queries a day, the
+detectors performance would deteriorate by <span
+class="math inline">\(30\%\)</span> in a year. This presents a lower
+limit prediction as the decrease in performance from one to <span
+class="math inline">\(15\)</span> million is almost tenfold at <span
+class="math inline">\(9.6\%\)</span> when another set of generations is
+used.</em></p>
+<p><em>Krishna et al. <span class="citation"
+data-cites="krishna2023paraphrasing"></span> do not present any
+theoretical guarantees for their detection scheme but their experiments
+point to a problematic adaption for productive usage. The requirements
+for maintaining a retrieval infrastructure and efforts to provide data
+security and protection on millions of customer queries add to the
+scaling problems.</em></p>
+</div>
+<h2 id="sec:watermarking">Watermarking</h2>
+<p>Methods for encoding information into a given media like text, image,
+or video is called <em>steganography</em>. The goals are broadly to
+transfer the desired information via the channel, i.e., the media
+without perceivably modifying the content. It is further required that
+the information remains useful and imperceivable in case of corruption
+of the channel. Watermarking is a subset of steganography with a focus
+on proving provenance for securing intellectual property rights or for
+avoiding misuse of a language models generative prowess. Watermarking
+techniques are more common in visual media where the channel naturally
+carries more noise and hence allows to encode hidden information in that
+noise. The emergence of <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> as capable text generation
+systems spurred interest in applying watermarks to text. Previous
+watermarking methods for texts focused on encoding the watermark
+information into pre-existing text. Kuditipudi et. al <span
+class="citation" data-cites="kuditipudi2023robust"></span> term these
+<em>edit-based</em> methods and contrast them to <em>generative</em>
+methods. The latter aims to include the watermark information into the
+generation process. This is becoming increasingly popular with more
+powerful <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span>. Generative methods on
+<span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> gain access to a per token
+probability distribution and incorporate this information into their
+scheme.</p>
+<p>A survey of legacy watermarking techniques is conducted in section <a
+href="#sec:previousWatermarking" data-reference-type="ref"
+data-reference="sec:previousWatermarking">4.2.1</a>. Section <a
+href="#sec:postGeneration" data-reference-type="ref"
+data-reference="sec:postGeneration">4.2.2</a> covers a transformer based
+neural network by Abdelnabi and Fritz <span class="citation"
+data-cites="abdelnabi2021adversarial"></span> trained to hide a given
+message into a pre-existent text. As this method employs a separate
+model and encodes the watermark message into a given text, it is part of
+the <em>edit-based</em> category. Section <a href="#sec:whileGeneration"
+data-reference-type="ref" data-reference="sec:whileGeneration">4.2.3</a>
+introduces a generative method by Kirchenbauer et al. <span
+class="citation" data-cites="kirchenbauer2023watermark"></span>.</p>
+<h3 id="sec:previousWatermarking">Watermarking Techniques for Text</h3>
+<p>The following summary of watermarking techniques is broadly based on
+chapter <span class="math inline">\(3\)</span> in Rizzo et al. <span
+class="citation" data-cites="rizzo2019finegrain"></span>.</p>
+<p>A popular and thoroughly researched method for embedding a watermark
+in text is <em>image based</em>. In a past when text was mainly present
+in printed form treating an immutable text body as a whole as an image
+was a valid approach. The watermark bits can be encoded in the relative
+brightness of such a grayscale image or by shifting parts of the text
+slightly horizontally or vertically. Another approach is to use
+artificial changes on a word or character level. These can affect the
+size of spacing between words, scaling of individual characters, and the
+sizing of single attributes like serifs and strokes. Methods of this
+kind are only applicable to digital texts that remain in an image based
+format. With texts being predominantly shared in text based formats like
+PDF, Word, or plain text, these techniques are not relevant for the
+domain of this thesis.</p>
+<p><em>Syntactic methods</em> exploit ambiguity in natural language. The
+first step is to build a syntax tree of the text. This step depends on
+the language and highlights a major shortcoming of the method. It is
+rule based and does not generalize across different languages. The
+watermark can be encoded by changes to the syntax tree under the premise
+to preserve the original meaning. Permissible syntactic operations are
+typically clefting, passivization, and activization. Clefting is the
+process of creating an unnecessarily complex syntax. The number of valid
+syntax simplifications can be used to store information. Activization
+and Passivization change the grammatical voice to the respective
+opposite form. Apart from the obvious changes in style and tone this
+method does not always preserve the original meaning. Subtleties like
+idiomatic versus literal meaning might get lost in the process.</p>
+<p><em>Semantic methods</em> make use of systematic substitution of
+synonyms and more general rephrasing. These methods share similar
+shortcomings with syntactic measures as they are rule-based and thus
+language dependent. The original text is altered and preserving its
+quality cannot be guaranteed.</p>
+<p><em>Structural methods</em> aim to preserve both original content and
+appearance. The watermark is rather achieved by adapting the encoding of
+the text. This can be done by combining multiple Unicode whitespace
+characters of different width, by using invisible Unicode characters
+such as a zero-width whitespace, or as in Rizzo et al. <span
+class="citation" data-cites="rizzo2019finegrain"></span> by using so
+called Unicode confusables. Confusables are symbols that have a
+different numerical code but are very similar when rendered. They are
+also referred to as homoglyphs as they are visually almost
+indistinguishable.</p>
+<p>As per Christ et al. <span class="citation"
+data-cites="christ2023undetectable"></span> a watermark for text should
+have the following three characteristics.</p>
+<ol>
+<li><p><strong>Undetectability</strong>: A watermark should not be
+visible to a human reader and there should be no computationally
+feasible detection algorithm. The quality of the generated text should
+be the same as any artificially introduced degradation might be
+detectable. A degraded performance would also naturally select against
+<span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> provider that employ such
+a watermarking scheme in an arms race for ever improved model
+performance.</p></li>
+<li><p><strong>Completeness</strong>: The watermark should be
+efficiently detectable. This also applies to sections of the watermarked
+text and to text without knowledge of the original prompt.</p></li>
+<li><p><strong>Robustness</strong>: The watermark should allow for
+reliable classification of text. False positives, i.e., classifying
+human-generated text as machine-generated should be negligible. The
+watermark should further remain valid even after perturbations of the
+original output text – be it with good or malintent.</p></li>
+</ol>
+<h3 id="sec:postGeneration">Edit-based Watermarking</h3>
+<p>Applying a watermark to a pre-existing cover text means that no
+access to the generating model and its sampling process is needed. Such
+an approach is thus more portable between different generating models. A
+post generation watermarking scheme is also not bounded by a causal
+models left-to-right context as the whole cover text is already
+generated and available as context for the watermarking process.
+However, this also means that the generating models understanding of the
+cover text cannot be leveraged.</p>
+<p>This section is used to present the <span data-acronym-label="awt"
+data-acronym-form="singular+full">awt</span> by Abdelnabi and Fritz
+<span class="citation" data-cites="abdelnabi2021adversarial"></span>, a
+Transformer based watermarking scheme that works on already generated
+text, i.e., under the black-box assumption. Transformer denotes a neural
+net architecture proposed by Vaswani et al. <span class="citation"
+data-cites="vaswani2023attention"></span>. It relies solely on the
+attention mechanism to represent relations between different input
+positions. This allows for a greater parallelism compared to recurrent
+or convolutional neural networks.</p>
+<div id="def:attn" class="definition">
+<p><strong>Definition 4.5</strong> (attention <span class="citation"
+data-cites="vaswani2023attention"></span>). <em>Let <span
+class="math inline">\(S_{1:n}\)</span> be a sequence of <span
+class="math inline">\(n\)</span> tokens. Attention is defined as a
+function that takes a query matrix <span
+class="math inline">\(Q\)</span> and a key-value pair of matrices <span
+class="math inline">\(K\)</span> and <span
+class="math inline">\(V\)</span> as input. These matrices are each made
+up of <span class="math inline">\(n\)</span> vectors of identical but
+configurable size <span class="math inline">\(\mathrm{dim}(k)\)</span>.
+Every individual token <span class="math inline">\(s_i\)</span> can be
+represented by its embedding vector <span
+class="math inline">\(e_i\)</span> of size <span
+class="math inline">\(\mathrm{dim}(e)\)</span> where <span
+class="math inline">\(\mathrm{dim}(e) = \mathrm{dim}(e_i)\)</span> for
+every <span class="math inline">\(i\)</span> with <span
+class="math inline">\(1 \leq i \leq n\)</span>. Combining all embedding
+vectors results in the <span class="math inline">\(n \times
+\mathrm{dim}(e)\)</span> matrix <span class="math inline">\(E\)</span>.
+With trainable <span class="math inline">\(\mathrm{dim}(e) \times
+\mathrm{dim}(k)\)</span> weights matrices query, key, and value are
+defined as <span class="math display">\[Q = E W_Q \text{, } K = E W_K
+\text{, } V = E W_V\]</span> respectively. The resulting attention is a
+vector of size <span class="math inline">\(\mathrm{dim}(k)\)</span> for
+each of the <span class="math inline">\(n\)</span> tokens in <span
+class="math inline">\(S_{1:n}\)</span>. The specific <em>Scaled
+Dot-Product Attention</em> in Vaswani et al. <span class="citation"
+data-cites="vaswani2023attention"></span> is defined as: <span
+id="eq:attn"><span class="math display">\[
+            \mathrm{Attention}(Q,K,V) = \mathrm{softmax}\left(
+\frac{QK^T}{\sqrt{\mathrm{dim}(k)}} \right)V
+\text{.}\]</span></span></em></p>
+</div>
+<p>The result of definition <a href="#def:attn"
+data-reference-type="ref" data-reference="def:attn">22</a> is a matrix
+and is also called an attention head. It is used to provide the model
+with full and weighted access to the context. Multiple attention heads
+can be combined to form <em>multi-head</em> attention. This is done by
+training <span class="math inline">\(m\)</span> sets of <span
+class="math inline">\(W_Q\)</span>, <span
+class="math inline">\(W_K\)</span>, <span
+class="math inline">\(W_V\)</span> weights matrices independently. The
+individual attention heads <span class="math display">\[Z_i =
+\mathrm{Attention}_i(Q_i,K_i,V_i)_{(n \times \mathrm{dim}(k))}\]</span>
+for <span class="math inline">\(1 \leq i \leq m\)</span> are computed as
+per equation <a href="#eq:attn" data-reference-type="ref"
+data-reference="eq:attn">4.15</a> and concatenated into a single matrix
+<span class="math inline">\(Z\)</span> with <span
+class="math inline">\(m \cdot \mathrm{dim}(k)\)</span> columns: <span
+class="math display">\[Z = \left[ Z_1 \dots Z_m \right]_{(n \times m
+\cdot \mathrm{dim}(k))} \text{.}\]</span> The final <span
+class="math inline">\(n \times \mathrm{dim}(k)\)</span> <span
+class="math inline">\(m\)</span>-head attention matrix is obtained by
+multiplying the combined matrix with a <span class="math inline">\(m
+\cdot \mathrm{dim}(k) \times \mathrm{dim}(k)\)</span> weight matrix
+<span class="math inline">\(W_O\)</span>.</p>
+<div id="def:transformer" class="definition">
+<p><strong>Definition 4.6</strong> (transformer <span class="citation"
+data-cites="vaswani2023attention"></span>). <em>An architecture for
+sequence to sequence language models that consists of <em>encoder</em>
+and <em>decoder</em> blocks. The encoder block consists of <span
+class="math inline">\(l\)</span> individual encoder layers which in turn
+mainly consists of an attention sub-layer and a feed-forward network
+sub-layer. The decoder block consists of <span
+class="math inline">\(k\)</span> individual decoder layers that are
+similar to an encoder layer but add an additional attention sub-layer.
+The feed-forward network consists of two linear functions and a <span
+data-acronym-label="relu"
+data-acronym-form="singular+short">relu</span>: <span
+class="math display">\[\mathrm{FFN}(x) = \max(0,xW_1 + b_1)W_2 + b_2
+\text{.}\]</span></em></p>
+<p><em>Given a sequence of tokens <span
+class="math inline">\(S_{1:n}\)</span> and their initial embeddings
+<span class="math inline">\(E_{1:n}\)</span>, the encoder blocks produce
+intermediate representations <span
+class="math inline">\(R_{1:n}\)</span> thereof. The encoder block
+consists of <span class="math inline">\(l\)</span> individual encoder
+layers and the intermediate representation is obtained by recursively
+applying encoder layers on the initial embedding, so that <span
+class="math display">\[R_{1:n} = \mathrm{encoder}_l \big( \dots
+\mathrm{encoder}_1(E_{1:n}) \big) \text{.}\]</span> An individual
+encoder layer receives the initial embedding <span
+class="math inline">\(E_{1:n}\)</span> or the output of the previous
+encoder layer as input. The attention matrix is computed as per equation
+<a href="#eq:attn" data-reference-type="ref"
+data-reference="eq:attn">4.15</a> with query, key, and value matrices
+based on the input. As all variables are based on the same input
+embedding this layer is called <em>self-attention</em>. The attention
+matrix is added to the original input and the resulting sum is
+normalized and fed to the feed-forward layer.</em></p>
+<p><em>The decoder block consists of <span
+class="math inline">\(k\)</span> individual decoder layers and produces
+the models output sequence <span
+class="math inline">\(S_{n+1:n+x}\)</span>. A single decoder layer uses
+self-attention on the previously generated <span
+class="math inline">\(g\)</span> tokens <span
+class="math inline">\(S_{n+1:n+g}\)</span>. Before the feed-forward
+layer an additional attention layer, called <em>encoder-decoder
+attention</em>, is used. It uses query values based on the
+self-attention augmented input <span
+class="math inline">\(S_{n+1:n+g}\)</span> but keys and values based on
+the encoder representation <span class="math inline">\(R_{1:n}\)</span>.
+This allows the decoder to relate the current generation to relevant
+parts of the prompt <span class="math inline">\(S_{1:n}\)</span> via its
+encoded representation as well as the already generated tokens <span
+class="math inline">\(S_{n+1:n+g}\)</span>.</em></p>
+</div>
+<h4 id="the-architecture-of-awt">The Architecture of <span
+data-acronym-label="awt"
+data-acronym-form="singular+abbrv">awt</span></h4>
+<p><span data-acronym-label="awt"
+data-acronym-form="singular+short">awt</span> consists of three major
+components: The <em>hiding network</em> used to embed the watermark bits
+<span class="math inline">\(W_{1:q}\)</span> into the cover text <span
+class="math inline">\(S_{1:n}\)</span>, the <em>revealing network</em>
+to extract unknown <span class="math inline">\(W_{1:q}\)</span> from a
+watermarked text <span class="math inline">\(S&#39;_{1:n}\)</span>, as
+well as a <em>discriminator</em> to classify an input text as either
+watermarked or not. The component’s weights can be trained using the
+discriminator and two metrics for quantifying semantic and syntactic
+correctness of the watermarked text <span
+class="math inline">\(S&#39;_{1:n}\)</span>. The authors use a model
+dimension of <span class="math inline">\(512\)</span>, i.e., each block
+or sublayer consumes and produces vectors of that size.</p>
+<p>The hiding network closely resembles the original Transformer
+architecture informally defined in definition <a href="#def:transformer"
+data-reference-type="ref" data-reference="def:transformer">23</a>. The
+encoder block consists of three identical encoder layers that each use a
+four headed self-attention layer. The encoder takes the cover texts
+token embeddings <span class="math inline">\(E_{1:n} = (e_1, \dots,
+e_n)\)</span> as input and produces the intermediate representation
+<span class="math inline">\(R_{1:n} = (r_1, \dots, r_n)\)</span> as
+output.</p>
+<p><span class="math inline">\(R_{1:n}\)</span> and the watermark
+information <span class="math inline">\(W_{1:q}\)</span> is combined by
+first creating a single vector of size <span
+class="math inline">\(512\)</span> each for intermediate representation
+and watermark information and then adding them up to form a single
+representation <span class="math inline">\(r\)</span>. The watermark
+information is a message consisting of <span
+class="math inline">\(q\)</span> binary bits. This bit sequence is fed
+into a <span data-acronym-label="ffn"
+data-acronym-form="singular+short">ffn</span> consisting of a single
+fully-connected layer so that <span class="math display">\[w =
+\mathrm{FFN}\big( (w_1, \dots, w_q) \big)\]</span> is a vector of size
+<span class="math inline">\(512\)</span>. The intermediate
+representation is merged into a single vector by average pooling: <span
+class="math display">\[r = \frac{1}{n} \sum_{i=1}^{n} e_i
+\text{.}\]</span> The final watermarked intermediate representation is
+then the sum of these two vectors <span
+class="math inline">\(r&#39;=r+w\)</span>.</p>
+<p>The decoder block is similar in architecture to the encoder block. It
+consists of three identical decoder layers and uses four independent
+attention heads. The self-attention layer takes the same embeddings of
+the cover text as the encoder as input. To ensure the auto-regressive
+nature of the transformer the input <span
+class="math display">\[E_{0:n-1} = (0, e_1, \dots, e_{n-1})\]</span> is
+shifted right by one position compared to the encoders input <span
+class="math inline">\(E_{1:n}\)</span> and the self-attention values for
+any future position is masked. The decoder is thus configured to work as
+an auto-encoder and outputs a logit vector, i.e., assigned scores for
+each token in the vocabulary. The watermarked text is sampled from the
+logit vector one token at a time using <em>Gumbel-Softmax</em>.</p>
+<div class="definition">
+<p><strong>Definition 4.7</strong> (categorical distribution). <em>A
+distinct probability distribution that assigns a probability to every
+possible realization of a categorical variable <span
+class="math inline">\(X\)</span>. <span class="math inline">\(X\)</span>
+can take on one of <span class="math inline">\(k\)</span> categories and
+the probability for each category <span class="math inline">\(i\)</span>
+is given as <span class="math inline">\(P(X=i) = p_i\)</span> for <span
+class="math inline">\(1 \leq i \leq k\)</span>.</em></p>
+<p><em>A sample of <span class="math inline">\(X\)</span> is encoded as
+a one-hot vector of size <span class="math inline">\(k\)</span>. These
+vectors can be interpreted as the corners of a <span
+class="math inline">\((k-1)\)</span>-simplex in <span
+class="math inline">\(k\)</span>-space.</em></p>
+</div>
+<p>Generating text is sampling from a categorical distribution where
+every token <span class="math inline">\(\mathcal{V}_i\)</span> in the
+vocabulary <span class="math inline">\(\mathcal{V}\)</span> with <span
+class="math inline">\(1 \leq i \leq |\mathcal{V}|\)</span> is a
+category. The probability for each category is given as <span
+class="math inline">\(p_\mathcal{V} = [p_1, \dots,
+p_{|\mathcal{V}|}]\)</span>. These probabilities are commonly obtained
+by applying the softmax function to a language model’s output scores
+over <span class="math inline">\(\mathcal{V}\)</span>, i.e., the logit
+vector. This is described in more detail in section <a
+href="#sec:decodingStrat" data-reference-type="ref"
+data-reference="sec:decodingStrat">2.2.3</a> for the causal text
+generation use case.</p>
+<p>The two-step process of first creating the categorical probability
+distribution over <span class="math inline">\(\mathcal{V}\)</span> and
+then sampling from it is shown to be equivalent to single step sampling
+using the <em>Gumbel-Max</em> trick in Maddison et al. <span
+class="citation" data-cites="maddison2015a"></span>. The Gumbel-Max
+trick uses <span class="math inline">\(|\mathcal{V}|\)</span>
+independent samples from the standard Gumbel<span
+class="math inline">\((0,1)\)</span> distribution <span class="citation"
+data-cites="gumbel1954statistical"></span> as artificial noise <span
+class="math inline">\(g = [g_1, \dots, g_{|\mathcal{V}|}]\)</span>. The
+arg max function of the sum of this noise and a model’s logit vector
+<span class="math inline">\(l=[l_1, \dots, l_{|\mathcal{V}|}]\)</span>
+is then the token ID <span class="math inline">\(t\)</span> with the
+highest probability and the token <span
+class="math inline">\(\mathcal{V}_t\)</span> will be generated: <span
+class="math display">\[t = \operatorname*{arg\,max}_i \left( g_i + \log
+l_i \right) \text{, for $1 \leq i \leq |\mathcal{V}|$.}\]</span></p>
+<p>Both methods are not differentiable. This is not a problem if the
+sampling or arg max operation is on a leaf node of a model’s computation
+graph. In such a case automatic differentiation and hence model training
+would still be possible for the remaining graph. <span
+data-acronym-label="awt" data-acronym-form="singular+short">awt</span>
+however is a system of three neural networks that need to be trained
+end-to-end for optimal results. The hiding network would be at the root
+of a notional computation graph, followed by revealing network and
+discriminator. A single non-differentiable node would break the gradient
+computation for the whole system. This can be avoided by using the
+Gumbel-Max trick and by approximating its arg max operation by the
+differentiable softmax.</p>
+<div class="definition">
+<p><strong>Definition 4.8</strong> (Gumbel-Softmax <span
+class="citation" data-cites="jang2017categorical"></span>). <em>The
+Gumbel-Softmax distribution is a continuous distribution that
+approximates samples from a categorical distribution. Let <span
+class="math inline">\(T\)</span> be a categorical variable with <span
+class="math inline">\(|\mathcal{V}|\)</span> possible realizations <span
+class="math inline">\(\textit{t}\)</span> encoded as <span
+class="math inline">\(|\mathcal{V}|\)</span>-sized one-hot vectors. Let
+further <span class="math inline">\(g_i \sim
+\mathrm{Gumbel}(0,1)\)</span> be independently sampled Gumbel noise and
+<span class="math inline">\(l_i\)</span> a language models logit vector
+for <span class="math inline">\(1 \leq i \leq |\mathcal{V}|\)</span>.
+The approximation <span class="math inline">\(t&#39; = [t&#39;_1, \dots,
+t&#39;_{|\mathcal{V}|}]\)</span> for the true sampled category <span
+class="math inline">\(t\)</span> is then given as <span
+class="math display">\[t&#39;_i = \frac{\mathrm{e}^{\frac{g_i + \log
+l_i}{\rho}}}{\sum_{j=1}^{|\mathcal{V}|} \mathrm{e}^{\frac{g_j + \log
+l_j}{\rho}}} \text{, for $1 \leq i \leq
+|\mathcal{V}|$.}\]</span></em></p>
+<p><em>The softmax temperature <span class="math inline">\(\rho\)</span>
+modifies the shape of the distribution. The approximate distribution is
+close to the original categorical distribution for <span
+class="math inline">\(\rho \to 0\)</span> and becomes uniform for <span
+class="math inline">\(\rho \to \infty\)</span>.</em></p>
+</div>
+<p>The <span data-acronym-label="awt"
+data-acronym-form="singular+short">awt</span> hiding network employs a
+<em>Straight-Through Gumbel</em> estimator to generate the watermarked
+sequence <span class="math inline">\(S&#39;_{1:n}\)</span> from the
+decoder blocks final output. It uses arg max in the forward pass and the
+approximating but differentiable softmax in the backward pass. The
+overall architecture of the hiding network is visualized in figure <a
+href="#fig:awt" data-reference-type="ref"
+data-reference="fig:awt">4.1</a>. <span id="fig:awt"
+data-label="fig:awt"></span> <img src="assets/render-5.svg"
+alt="image" /></p>
+<p>The revealing network and the discriminator are encoder only
+networks. The revealing network takes the watermarked text <span
+class="math inline">\(S&#39;_{1:n}\)</span> as input and produces an
+estimate <span class="math inline">\(W&#39;_{1:q}\)</span> for the true
+watermarking bits <span class="math inline">\(W_{1:q}\)</span>. The
+discriminator is fed either watermarked or cover text and outputs the
+binary classification result machine-generated or human-generated.</p>
+<h4 id="training-the-system">Training the System</h4>
+<p><span data-acronym-label="awt"
+data-acronym-form="singular+short">awt</span> is trained on the
+WikiText-2 corpus introduced by Merity et al. <span class="citation"
+data-cites="merity2016pointer"></span>. It contains more than two
+million words of curated Wikipedia articles. A sequence <span
+class="math inline">\(W_{1:4}\)</span> of four random bits as watermark
+information is applied on the sentence level. The watermark can be
+applied repeatedly, either on every sentence in the segment or only on a
+fraction of randomly selected ones. The cover texts for embedding the
+watermark were segments of <span class="math inline">\(80 \pm 5\)</span>
+words. Applying the watermark repeatedly will increase the accuracy at
+which the watermark can be decoded by the retrieval network but it will
+also decrease the quality of the watermarked text. The ratio of
+watermark bits per number of token in the cover text is thus an
+important parameter for configuring the scheme.</p>
+<p>The authors aim to achieve Pareto optimality between watermark
+decoding accuracy and text quality by training the system adversarially.
+The hiding network is trained to reconstruct the input sequence <span
+class="math inline">\(S_{1:n}\)</span> from the encoder output <span
+class="math inline">\(\mathbf{r}\)</span> and the watermark bits <span
+class="math inline">\(W_{1:4}\)</span>. This reconstruction loss <span
+class="math display">\[L_{\mathrm{hid}} = -
+H(S,\mathrm{Decoder}(S))\]</span> is measured as the negative the
+cross-entropy between observed probabilities and the probabilities
+assigned by the decoder block of the hiding network.</p>
+<p>A perfectly reconstructed <span
+class="math inline">\(S&#39;_{1:n}\)</span> would not be able to hold
+any watermark information. Therefore the reconstruction loss has to be
+countered by the optimization goal of the revealing network. The
+revealing network aims to retrieve as much of the original watermark
+information <span class="math inline">\(W_{1:q}\)</span> as possible.
+This is measured as the binary cross-entropy <span
+class="math display">\[L_{\mathrm{rev}} = - \sum_{i=1}^q w_i \log \big(
+p_{\mathrm{rev}}(w_i) \big) + (1 - w_i) \log \big( 1 -
+p_{\mathrm{rev}}(w_1) \big) \text{.}\]</span></p>
+<p>The authors find that a system consisting only of a hiding and a
+revealing network is capable of embedding information in a cover text.
+This information is, however, not very secret as such a system tends to
+make few but highly unlikely changes. Intuitively making only few
+adjustments optimizes for the reconstruction goal while placing token
+with low probability increases decoding performance. To factor in the
+secrecy of the embedded information, hence qualifying it as a watermark,
+the discriminator network is used. Using the binary encoding <span
+class="math display">\[\mathrm{Discriminator}(S) =
+            \begin{cases}
+                1 &amp; \text{if $S$ is classified as machine-generated}
+\\
+                0 &amp; \text{if $S$ is classified as human-generated}
+            \end{cases}\]</span> the discriminators loss function awards
+a misclassification of watermarked text as human-generated: <span
+class="math display">\[L_{\mathrm{dis}} = -\log \big(
+\mathrm{Discriminator}(S&#39;_{1:n}) \big) \text{.}\]</span></p>
+<p>After assigning weights to each individual loss and training the
+models weights on the resulting overall loss function <span
+id="eq:awtLoss"><span class="math display">\[
+        L = \omega_{\mathrm{hid}} L_{\mathrm{hid}} +
+\omega_{\mathrm{rev}} L_{\mathrm{rev}} + \omega_{\mathrm{dis}}
+L_{\mathrm{dis}} \text{,}\]</span></span> the authors add specific loss
+terms for semantic and syntactic correctness of the watermarked text.
+The semantic loss is the absolute difference of semantic embeddings of
+the original and watermarked text. The semantic embeddings are created
+by a pre-trained embedding model by Conneau et al. <span
+class="citation" data-cites="conneau2018supervised"></span>. The
+syntactic loss term is computed from the probabilities assigned to the
+watermarked text <span class="math inline">\(S&#39;_{1:n}\)</span> by
+the independently trained AWD-LSTM language model introduced in Merity
+et al. <span class="citation"
+data-cites="merity2016pointer"></span>.</p>
+<h4 id="analysis-of-the-awt-watermark">Analysis of the <span
+data-acronym-label="awt" data-acronym-form="singular+short">awt</span>
+Watermark</h4>
+<p>In this section the desiderata undetectability, completeness, and
+robustness are evaluated.</p>
+<p>The undetectability of the <span data-acronym-label="awt"
+data-acronym-form="singular+short">awt</span> watermark is evaluated
+using two metrics to measure the outputs syntactic and semantic
+correctness, an automated binary classifier trained to detect
+watermarked text, and human judgement. The Meteor score by Denkowski and
+Lavie <span class="citation" data-cites="denkowski2014meteor"></span>
+performs <span class="math inline">\(n\)</span>-gram alignment with
+synonym lookup between two texts and returns a similarity score between
+<span class="math inline">\(0\)</span> and <span
+class="math inline">\(1\)</span>. This tracks changes of individual
+token between the texts that are not valid synonyms but does not account
+for their semantic difference. The same amount of changed token can
+affect the semantics of a text differently depending on how close the
+changed token is to the original. This difference is quantified as the
+<span class="math inline">\(L_2\)</span> norm of the texts SBERT
+embeddings, a model by Reimers and Gurevych <span class="citation"
+data-cites="reimers2019sentencebert"></span>. Meteor score and SBERT
+distance measure text quality and can be traded for detection accuracy
+by adjusting the weights of the loss in equation <a href="#eq:awtLoss"
+data-reference-type="ref" data-reference="eq:awtLoss">4.29</a>. The
+detection accuracy is measured as the bitwise accuracy of the watermark
+message, i.e., the sum of all matched bits <span
+class="math inline">\(w_i = w&#39;_i\)</span> relative to the mismatches
+over the text segment. The maximum accuracy of the scheme is <span
+class="math inline">\(97.5\%\)</span>. This is achieved with a Meteor
+score of <span class="math inline">\(0.96\)</span> and a SBERT distance
+of <span class="math inline">\(1.26\)</span>. Lowering the bit accuracy
+by five percentage points improves the Meteor score to <span
+class="math inline">\(0.98\)</span> and the SBERT distance to below
+<span class="math inline">\(0.9\)</span>. The authors use an
+independently trained transformer based classifier as an adversary to
+<span data-acronym-label="awt"
+data-acronym-form="singular+short">awt</span>. This classifier fails to
+detect watermarked text with an almost random <span
+class="math inline">\(F_1\)</span>-score of <span
+class="math inline">\(0.53\)</span>. The human evaluation is done with
+<span data-acronym-label="awt"
+data-acronym-form="singular+short">awt</span> marked text at a bit
+accuracy of <span class="math inline">\(86\%\)</span>. On a Likert scale
+from <span class="math inline">\(0\)</span> to <span
+class="math inline">\(5\)</span> watermarked texts were assigned a mean
+score of <span class="math inline">\(4.5\)</span> while non-watermarked
+original texts scored only slightly better at <span
+class="math inline">\(4.65\)</span>.</p>
+<p>The scheme can be considered complete as the detection of an applied
+watermark is possible and computationally feasible. There are however
+characteristics that adversely affect the scheme’s practical use. The
+authors do not provide separate false positive rates. At an accuracy of
+around <span class="math inline">\(90\%\)</span> this could be
+significant. Additionally it is unclear how this bitwise accuracy is
+distributed across the watermark bits. If certain bits are
+systematically more likely to be lost than others and if the watermark’s
+encoding does not allow to recover from single bit errors, the practical
+accuracy could be significantly worse. While the authors show that the
+text quality is largely maintained when translating to a watermarked
+version, it is not lossless. With <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> improving quickly and the
+competition between different vendors being high, trading an embedded
+watermark for even slight losses in text quality seems like an unpopular
+choice. Lastly the computational and structural overhead of <span
+data-acronym-label="awt" data-acronym-form="singular+abbrv">awt</span>’s
+stack of five separate neural nets seems prohibitive for practical
+use.</p>
+<p>Abdelnabi and Fritz <span class="citation"
+data-cites="abdelnabi2021adversarial"></span> investigate variations of
+the paraphrase attack introduced in section <a href="#sec:retrieval"
+data-reference-type="ref" data-reference="sec:retrieval">4.1</a>. An
+attack that is confined to replacing tokens in the watermarked text
+achieved a reduction in detection accuracy of five percentage points.
+This also resulted in a significant decrease in text quality as measured
+by a six fold increase in the samples SBERT distance. A transformer
+based model was specifically trained to remove the watermark. This model
+achieved accuracy reductions of over <span
+class="math inline">\(10\)</span> percentage points with the SBERT
+distance only increasing five fold. Removing the watermark reduces the
+texts quality and hence reduces the incentive to try in the first place.
+The watermark can be considered a robust provenance tracking solution
+for machine-generated texts.</p>
+<h3 id="sec:whileGeneration">Generative Watermarking</h3>
+<p>Kirchenbauer et al.<span class="citation"
+data-cites="kirchenbauer2023watermark"></span> propose a one bit
+watermarking framework for proprietary <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> that has a negligible
+effect on computational complexity and quality of the generated
+text.</p>
+<p>The basic idea of Kirchenbauer et al.<span class="citation"
+data-cites="kirchenbauer2023watermark"></span> is to partition the <span
+data-acronym-label="llm" data-acronym-form="plural+short">llms</span>
+vocabulary <span class="math inline">\(\mathcal{V}\)</span> into two
+equal sized buckets. A watermark is present if most token are sampled
+from only one bucket. The Partition into a <em>green list</em> <span
+class="math inline">\(G\)</span> and a <em>red list</em> <span
+class="math inline">\(R\)</span> are computed for each token based only
+on the previous one. For token <span
+class="math inline">\(s_{i}\)</span> the previous token <span
+class="math inline">\(s_{i-1}\)</span> is hashed and used to seed a
+random number generator. A sequence of <span
+class="math inline">\(|\mathcal{V}|\)</span> random numbers are in turn
+used to assign each token ID <span class="math inline">\(t \in
+\mathcal{V}\)</span> to either <span class="math inline">\(G\)</span> or
+<span class="math inline">\(R\)</span> such that <span
+class="math inline">\(|G| + |R| = |\mathcal{V}|\)</span> is finally
+achieved.</p>
+<p>The task of selecting words mostly from the green list can be
+implemented absolutely, i.e., tokens from the red list are not
+considered in general, or relatively by increasing the logit value of
+green tokens by a constant <span class="math inline">\(\delta\)</span>.
+Kirchenbauer et al.<span class="citation"
+data-cites="kirchenbauer2023watermark"></span> call the former the
+<em>hard rule</em> and the latter the <em>soft rule</em>.</p>
+<p>Application of the hard rule guarantees a perfect watermark but can
+result in significantly reduced text quality. In sequences with low
+entropy the probability distribution of the <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>
+over the vocabulary <span class="math inline">\(\mathcal{V}\)</span> is
+highly concentrated on only a few tokens. The likelihood that none of
+these few highly probable tokens are assigned the green list increases.
+Following the hard rule only tokens with low probability are then
+available for sampling. This reduces the quality of the generated text
+and increases its perplexity.</p>
+<p>This behavior can be improved by switching to the soft rule. Instead
+of excluding red list tokens completely from sampling, the green list
+item’s likelihood of being sampled is increased by adding a constant
+<span class="math inline">\(\delta\)</span> to their value <span
+class="math inline">\(l_i\)</span> of the models logit vector <span
+class="math inline">\(l\)</span>. A reasonable <span
+class="math inline">\(\delta\)</span> will have no effect on low entropy
+tokens where <span class="math inline">\(l_i \gg \delta\)</span>. Red
+list token will maintain a reasonably large chance of being sampled in
+such situations, hence maintaining text quality. For tokens where the
+logit vector’s values are more evenly distributed boosting only the
+values of green list words will result in mainly them being sampled. The
+value of <span class="math inline">\(\delta\)</span> is constrained by
+the text quality versus watermark strength tradeoff and has to be
+optimized empirically. Kirchenbauer et al.<span class="citation"
+data-cites="kirchenbauer2023watermark"></span> consider values between
+<span class="math inline">\(0.5\)</span> and <span
+class="math inline">\(10\)</span>.</p>
+<p>The scheme is visualized in figure <a href="#fig:watermarkingScheme"
+data-reference-type="ref"
+data-reference="fig:watermarkingScheme">4.2</a>. Layer 1 showcases the
+sequence of input tokens to a language model. The watermarking scheme is
+model agnostic as long as raw predictions over a vocabulary <span
+class="math inline">\(\mathcal{V}\)</span> are the output. In this case
+the model is depicted as a fully connected neural net for simplicity.
+The output predictions over <span
+class="math inline">\(\mathcal{V}\)</span> are represented by the height
+of the token’s partitions in layer 2. These predictions are then
+adjusted by adding a fixed value, <span
+class="math inline">\(\delta\)</span>, in layer 3. The raw predictions
+and their adjusted values will be transformed into interpretable
+probabilities for each token in <span
+class="math inline">\(\mathcal{V}\)</span> after applying a softmax. The
+watermark is hence based entirely on this alteration of the models
+learned probability distribution in layer 3. Layer 4 depicts the output
+token. Here, greedy sampling is assumed, hence simply the token with the
+highest score is chosen.</p>
+<p><span id="fig:watermarkingScheme"
+data-label="fig:watermarkingScheme"></span> <img
+src="assets/render-6.svg" alt="image" /></p>
+<p>The watermark can be detected without access to the original <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>.
+A detector will, however, need access to the tokenizer’s vocabulary
+<span class="math inline">\(\mathcal{V}\)</span>, the <span
+data-acronym-label="prng"
+data-acronym-form="singular+short">prng</span>, as well as the value
+that was used to seed the <span data-acronym-label="prng"
+data-acronym-form="singular+short">prng</span> during text generation.
+Sharing these publicly would allow for third party detectors that can be
+used independently from the <span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> provider. It would also
+allow to apply the same watermark to any text, thus invalidating the
+signal. An potentially infinite amount of false positives could reduce
+the share of true positives from the original <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>
+provider to statistical insignificance. Malicious use of the watermark
+could be prevented by keeping some or all of the needed information for
+a detection of the watermark private.</p>
+<p>Such a private watermark detection can still be attacked. A large
+corpus of generated and watermarked text would be vulnerable to decoding
+the watermarks determinants via a brute force approach. In the original
+approach the pseudo randomness in the partitioning of <span
+class="math inline">\(\mathcal{V}\)</span> into <span
+class="math inline">\(G\)</span> and <span
+class="math inline">\(R\)</span> is archived by passing the numeric
+value of the previous token <span class="math inline">\(s_{i-1}\)</span>
+to a hash function <span class="math inline">\(h(.)\)</span>. The seed
+<span class="math inline">\(h(s_{i-1})\)</span> is an idempotent element
+to the <span data-acronym-label="prng"
+data-acronym-form="singular+short">prng</span>. Under assumption of the
+hard rule, i.e., <span class="math inline">\(\delta = \infty\)</span>,
+any combination of two observed token <span
+class="math inline">\(\{s_{i-1}, s_i\}\)</span> is thus enough
+information to determine that <span class="math inline">\(s_i\)</span>
+is part of the green list that was generated from <span
+class="math inline">\(s_{i-1}\)</span>. This can be countered by
+increasing uncertainty with a smaller <span
+class="math inline">\(\delta\)</span> or by increasing the combinatorial
+complexity by using another seed for the <span data-acronym-label="prng"
+data-acronym-form="singular+short">prng</span>. Simply basing the seed
+on the previous two tokens instead of the single previous one would
+increase the number of needed observations from <span
+class="math inline">\(\mathcal{V}^2\)</span> to <span
+class="math inline">\(\mathcal{V}^3\)</span>.</p>
+<h4 id="sec:watermarkingAlgo">The Watermarking Algorithm</h4>
+<p>The watermarking scheme and its variations will be described more
+formally in this section. The basic algorithm implements the hard green
+list rule and is given in Algorithm <a href="#alg:basicWatermarking"
+data-reference-type="ref" data-reference="alg:basicWatermarking">2</a>.
+It is meant mainly for demonstrative purposes and to form a baseline for
+future variations.</p>
+<p><span id="alg:basicWatermarking"
+data-label="alg:basicWatermarking"></span> <img
+src="assets/render-7.svg" alt="image" /></p>
+<p>Algorithm <a href="#alg:basicWatermarking" data-reference-type="ref"
+data-reference="alg:basicWatermarking">2</a> works on a prompt and
+previously generated text as input. There are <span
+class="math inline">\(p\)</span> tokens in the prompt. At most <span
+class="math inline">\(g\)</span> token will be generated and <span
+class="math inline">\(i\)</span> denotes the index of a for-loop from
+<span class="math inline">\(0\)</span> to <span
+class="math inline">\(g-1\)</span>. In the loop the <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>
+is applied to <span class="math inline">\(n\)</span> tokes of the prompt
+and <span class="math inline">\(i\)</span> previously generated tokens
+in line 1. The output is a vector of scores <span
+class="math inline">\(l^{(i)}\)</span> for every token in <span
+class="math inline">\(\mathcal{V}\)</span> during the algorithm’s <span
+class="math inline">\(i\)</span>-th iteration. This vector is also
+called the logit vector of the model and represents raw, non-normalized
+values on an ordinal scale. The vocabulary <span
+class="math inline">\(\mathcal{V}\)</span> is a set in the mathematical
+sense, i.e., all elements are unique. <span
+class="math inline">\(l_k\)</span> is the score assigned to the token
+with token ID <span class="math inline">\(k\)</span>. Line 2 initializes
+a <span data-acronym-label="prng"
+data-acronym-form="singular+short">prng</span> by setting the hash value
+of the previous token as its seed. The green list is then constructed by
+adding random but unique values from the overall vocabulary <span
+class="math inline">\(\mathcal{V}\)</span>. This is done until the green
+list has the desired size of <span
+class="math inline">\(\frac{|\mathcal{V}|}{2}\)</span>. Finally the next
+generated token is sampled solely from the green list <span
+class="math inline">\(G\)</span> in line 3 and appended to the resulting
+tokens array <span class="math inline">\(S\)</span> in line 4.</p>
+<p>The basic algorithm can be adjusted and parameterized to implement
+both the hard and the soft green list rule. Two parameters are
+introduced: <span class="math inline">\(\gamma\)</span> to control the
+size of the green list relative to the vocabulary <span
+class="math inline">\(\mathcal{V}\)</span> and <span
+class="math inline">\(\delta\)</span> to adjust the models outputs. As a
+real number between <span class="math inline">\(0\)</span> and <span
+class="math inline">\(1\)</span>, <span
+class="math inline">\(\gamma\)</span> defines the cardinality of the
+green list <span class="math inline">\(|G|\)</span> as <span
+class="math inline">\(|G| = \gamma |\mathcal{V}|\)</span>. In Algorithm
+<a href="#alg:basicWatermarking" data-reference-type="ref"
+data-reference="alg:basicWatermarking">2</a> this is set to <span
+class="math inline">\(\gamma = \frac{1}{2}\)</span>. For <span
+class="math inline">\(\gamma = 0\)</span> there will be no green token.
+Hence detecting a watermark based on an unusually high amount of green
+token is not possible. The same applies to <span
+class="math inline">\(\gamma =1\)</span>, i.e., <span
+class="math inline">\(G = \mathcal{V}\)</span>. Since all generated
+token are already expected to be from the green list <span
+class="math inline">\(G\)</span> no watermark signal can be generated.
+The value of <span class="math inline">\(\delta\)</span> is added to the
+initial score of each green list token. This means that after each
+forward pass of the model an additional post-processing step is executed
+before a softmax is applied to the raw logits and a sampling strategy is
+executed. Thus for every iteration <span
+class="math inline">\(i\)</span> of the algorithms generation loop and
+for each token <span class="math inline">\(k \in G\)</span> <span
+class="math display">\[\hat{l}^{(i)}_k = l^{(i)}_k + \delta\]</span> is
+applied to get a modified logits vector for further use. This step is
+visualized in figure <a href="#fig:watermarkingScheme"
+data-reference-type="ref"
+data-reference="fig:watermarkingScheme">4.2</a> in the penultimate step.
+Given a positive value, this increases the likelihood of green list
+items being sampled. Including these two parameters yields the more
+general algorithm <a href="#alg:generalWatermarking"
+data-reference-type="ref"
+data-reference="alg:generalWatermarking">3</a>. In algorithm <a
+href="#alg:basicWatermarking" data-reference-type="ref"
+data-reference="alg:basicWatermarking">2</a> randomly selected token are
+added to <span class="math inline">\(G\)</span> and generated token are
+only sampled from <span class="math inline">\(G\)</span>. Algorithm <a
+href="#alg:generalWatermarking" data-reference-type="ref"
+data-reference="alg:generalWatermarking">3</a> by contrast modifies the
+selection criteria, i.e., the logit vector. In line 1 <span
+class="math inline">\(l^{(i)}\)</span> is linearly transformed into
+<span class="math inline">\(\hat{l}^{(i)}\)</span> by adding <span
+class="math inline">\(\delta\)</span> if a token ID is part of <span
+class="math inline">\(G\)</span> or <span
+class="math inline">\(0\)</span> if it is not. The generated token is
+then sampled from the whole vocabulary but based on the altered scores
+in <span class="math inline">\(\hat{l}^{(i)}\)</span> in line 2.</p>
+<p><span id="tab:watermarkingParams"
+data-label="tab:watermarkingParams"></span> <img
+src="assets/render-8.svg" alt="image" /></p>
+<p>Algorithm <a href="#alg:generalWatermarking"
+data-reference-type="ref" data-reference="alg:generalWatermarking">3</a>
+can be configured to yield identical results to those of the basic
+algorithm. Setting <span class="math inline">\(\gamma\)</span> to either
+<span class="math inline">\(0\)</span> or <span
+class="math inline">\(1\)</span> will either not apply <span
+class="math inline">\(\delta\)</span> to any token or to all tokens
+respectively. This will leave the original distribution of scores intact
+and will have no effect on the sampling phase. Therefore values of <span
+class="math inline">\(0\)</span> or <span
+class="math inline">\(1\)</span> for <span
+class="math inline">\(\gamma\)</span> or <span
+class="math inline">\(0\)</span> for <span
+class="math inline">\(\delta\)</span> are effectively toggles to switch
+off watermarking in algorithm <a href="#alg:generalWatermarking"
+data-reference-type="ref"
+data-reference="alg:generalWatermarking">3</a>. The hard rule can be
+implemented by configuring algorithm <a href="#alg:generalWatermarking"
+data-reference-type="ref" data-reference="alg:generalWatermarking">3</a>
+with a very large <span class="math inline">\(\delta\)</span> value.
+This will rule out red list tokens from being sampled even though it is
+theoretically still possible. The exact value to achieve quasi hard rule
+behavior from the general algorithm depends on the specific model in use
+and its range of logit values. The parameters and the associated values
+for both hard and soft green list rule adaptation of the algorithm are
+given in table <a href="#tab:watermarkingParams"
+data-reference-type="ref"
+data-reference="tab:watermarkingParams">4.3</a>.</p>
+<p><span id="alg:generalWatermarking"
+data-label="alg:generalWatermarking"></span> <img
+src="assets/render-9.svg" alt="image" /></p>
+<h4 id="sec:watermarkSignal">The Watermark Signal</h4>
+<p>In Kirchenbauer et al.<span class="citation"
+data-cites="kirchenbauer2023watermark"></span> the term
+<em>watermark</em> represents a binary signal encoded in a sequence of
+tokens. It is created by comparing the number of observed occurrences of
+specific tokens against the respective expected value. The vocabulary
+<span class="math inline">\(\mathcal{V}\)</span> is a set of all tokens
+available to a model. Green list <span class="math inline">\(G\)</span>
+and red list <span class="math inline">\(R\)</span> are a partition
+thereof, that is, <span class="math inline">\(G\)</span> and <span
+class="math inline">\(R\)</span> are nonempty mutually disjoint subsets
+of <span class="math inline">\(\mathcal{V}\)</span> and the union of
+<span class="math inline">\(G\)</span> and <span
+class="math inline">\(R\)</span> covers <span
+class="math inline">\(\mathcal{V}\)</span>: <span
+id="eq:partition"><span class="math display">\[
+        G \cup R = \mathcal{V} \text{ and } G \cap R =
+\emptyset\]</span></span> The watermarking mechanism’s behavior is
+controlled using the two primary parameters <span
+class="math inline">\(\delta\)</span> and <span
+class="math inline">\(\gamma\)</span>. After each forward pass of the
+model, the logit values of every token in <span
+class="math inline">\(G\)</span> is increased by <span
+class="math inline">\(\delta\)</span>. This is increasing their
+likelihood of being sampled. The relative size of <span
+class="math inline">\(G\)</span> to <span
+class="math inline">\(\mathcal{V}\)</span> is controlled with <span
+class="math inline">\(\gamma\)</span>, so that: <span
+class="math display">\[|G| = \gamma |\mathcal{V}|\]</span> With this and
+the definition in <a href="#eq:partition" data-reference-type="ref"
+data-reference="eq:partition">4.31</a> follows directly <span
+class="math inline">\(|R| = (1-\gamma) |\mathcal{V}|\)</span>.</p>
+<p>Let <span class="math inline">\(X\)</span> be an observation of green
+list membership for an individual token <span
+class="math inline">\(i\)</span>. There are two possible outcomes <span
+class="math inline">\(x \in \{0,1\}\)</span> where <span
+class="math inline">\(x=0\)</span> encodes <span class="math inline">\(i
+\notin G\)</span> and <span class="math inline">\(x=1\)</span> encodes
+<span class="math inline">\(i \in G\)</span>. This makes <span
+class="math inline">\(X\)</span> a discrete random variable with the
+probability mass function: <span class="math display">\[P(X=x) =
+            \begin{cases}
+                    \gamma      &amp; \text{if $x = 1$} \\
+                    1 - \gamma  &amp; \text{if $x = 0$}  \\
+                    0           &amp; \text{else}
+            \end{cases}\]</span></p>
+<p>Repeating this Bernoulli trial for every token <span
+class="math inline">\(i\)</span> in a sequence of <span
+class="math inline">\(S_{1:n}\)</span> output tokens yields <span
+class="math inline">\(X_{1}, \dots, X_{n}\)</span> independent and
+identically distributed random variables. The sum of these observations
+is the number of tokens from the green list for a given model output of
+length <span class="math inline">\(n\)</span>, i.e., the binomially
+distributed variable <span class="math inline">\(Y\)</span>: <span
+class="math display">\[Y = \sum_{i=1}^{n} X_i \sim B(n,
+\gamma)\]</span></p>
+<p>The associated standard score <span class="math inline">\(Z\)</span>
+for <span class="math inline">\(Y\)</span> can be interpreted as the
+distance between a single observation of a random variable and its
+expected value measured in terms of standard deviations: <span
+class="math display">\[Z = \frac{Y -
+\mathbb{E}(Y)}{\sigma(Y)}\]</span></p>
+<p>With <span class="math inline">\(\mathbb{E}(Y) = \gamma n\)</span>
+and <span class="math inline">\(\sigma(Y) = \sqrt{\mathrm{Var}(Y)} =
+\sqrt{(1-\gamma) \gamma n}\)</span> this yields for any realization of
+<span class="math inline">\(Y = y \in \{0, \dots, n\}\)</span>: <span
+class="math display">\[Z = \frac{y - \gamma n}{\sqrt{(1-\gamma) \gamma
+n}}\]</span></p>
+<p>The final watermark signal <span class="math inline">\(W\)</span> as
+proposed by Kirchenbauer et al.<span class="citation"
+data-cites="kirchenbauer2023watermark"></span> is generated by testing
+the following null hypothesis: <span class="math display">\[H_0:
+\text{The text is generated without knowledge of the red
+list}.\]</span></p>
+<p>The null hypothesis can be rejected if the standard score is high
+compared to an arbitrary threshold value <span
+class="math inline">\(\tau\)</span>: <span class="math display">\[W  =
+            \begin{cases}
+                1 &amp; \text{if $Z &gt; \tau$} \\
+                0 &amp; \text{if $Z \leq \tau$}
+            \end{cases}\]</span></p>
+<p>The value for <span class="math inline">\(\tau\)</span> can be freely
+chosen and directly controls the confidence that can be expected from
+the watermark signal <span class="math inline">\(W\)</span>. A z-score
+of <span class="math inline">\(1.96\)</span> translates to a more
+interpretable p-value of <span class="math inline">\(0.05\)</span>. This
+means that the probability of <span class="math inline">\(H_0\)</span>
+being true at this z-score is lower than <span
+class="math inline">\(5\%\)</span>. On the inverse, <span
+class="math inline">\(H_0\)</span> can be rejected correctly with a
+probability of <span class="math inline">\(95\%\)</span>. The higher the
+threshold <span class="math inline">\(\tau\)</span> is set the lower the
+corresponding p-value and hence the probability of <span
+class="math inline">\(H_0\)</span> being true.</p>
+<p>The watermarking signal is intended to show <span
+class="math inline">\(1\)</span> if the given text was generated by
+applying the watermark scheme, i.e., intentionally shifting the
+distribution of tokens towards those in the green list. The signal has
+the value <span class="math inline">\(0\)</span> if there is no such
+difference between the observed and expected distribution of tokens.</p>
+<h4 id="sec:watermarkingExperiments">Experiments</h4>
+<p>The experiments discussed in this section are intended to describe
+the watermark scheme’s behavior quantitatively. They are based on the
+original research by Kirchenbauer et al. <span class="citation"
+data-cites="kirchenbauer2023watermark"></span>. The source code is
+available at <a href="https://gitlab.com/weatherfield/watermarking-llms"
+class="uri">https://gitlab.com/weatherfield/watermarking-llms</a>.</p>
+<p><code>src/wllm.py</code> is a <span data-acronym-label="cli"
+data-acronym-form="singular+short">cli</span> and acts as the main entry
+point for executing experiments defined in
+<code>src/experiments.py</code>. It allows to control various aspects of
+the text generation in <code>src/pipeline.py</code>. This pipeline is a
+three step process. A prompt is sampled and processed in the first step.
+The main step includes the invocation of the configured <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>
+and the application of the watermark by a <code>LogitProcessor</code> in
+<code>src/processor.py</code>. The text generation is done by the <span
+data-acronym-label="opt" data-acronym-form="singular+short">opt</span>
+class of models <span class="citation" data-cites="zhang2022opt"></span>
+using the Hugging Face Transformer library <span class="citation"
+data-cites="wolf2020huggingfaces"></span>. A post-processing step is
+used to compute metrics on the generated text and to persist the
+formatted output using the <code>src/archive.py</code> module. This
+module also includes various methods for retrieving and compiling
+relevant data from the experiments.</p>
+<p>The <em>RealNews</em> dataset by Zellers et al. <span
+class="citation" data-cites="zellers2020defending"></span> is a subset
+of the <span data-acronym-label="c4"
+data-acronym-form="singular+short">c4</span> dataset introduced by
+Raffel et al. <span class="citation"
+data-cites="raffel2023exploring"></span>. It consists of news articles
+of varying length scraped from the web. A news article is randomly
+sampled and split at the <span class="math inline">\(200\)</span>-th
+token. The first half of the original text is used as a prompt and the
+second one as a baseline, human-like completion. OPT-125m and OPT-1.3b
+models are used in separate experiments as <em>generator models</em> to
+generate a watermarked and a non-watermarked version based on the
+prompt. The generated text has a length of between 195 and 205 tokens.
+For both versions z-score and PPL are computed. The latter computation
+is based on the probability distribution of a larger <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>,
+OPT-350m and OPT-2.7b respectively, given the generated text. Such a
+model is referenced as an <em>oracle model</em>. An individual
+experiment consists of 500 independent generations of watermarked and
+non-watermarked text and the associated metrics.</p>
+<p>Each generator-oracle model pair is tested with a configuration from
+the cartesian product of <span class="math inline">\(\delta \in
+\{1,2,5,10\}\)</span>, <span class="math inline">\(\gamma \in
+\{0.1,0.25,0.5,0.75,0.9\}\)</span>, and the following sampling methods:
+multinomial, greedy, 4-beam search, and 8-beam search. All generated
+data is persisted in a text file called <code>archive.jsonl</code>.</p>
+<h4 id="sec:watermarkAnalysis">Analysis of the Watermark</h4>
+<p>This section aims to analyze the scheme’s qualities regarding the
+desiderata undetectability, completeness, and robustness. The
+watermark’s strength as measured by the z-score is a function of the
+scheme’s control variables <span class="math inline">\(\gamma\)</span>,
+<span class="math inline">\(\delta\)</span>. The z-score is negatively
+correlated to the relative size of the green list <span
+class="math inline">\(\gamma\)</span> and positively correlated to the
+green list bias <span class="math inline">\(\delta\)</span>. For
+multinomial sampling this behavior is visualized in figure <a
+href="#fig:watermarkTradeoff125m" data-reference-type="ref"
+data-reference="fig:watermarkTradeoff125m">4.4</a> for the smaller
+OPT-125m model and in figure <a href="#fig:watermarkTradeoff1.3b"
+data-reference-type="ref"
+data-reference="fig:watermarkTradeoff1.3b">4.6</a> for the larger
+OPT-1.3b. Figures <a href="#fig:watermarkTradeoff125mBeams"
+data-reference-type="ref"
+data-reference="fig:watermarkTradeoff125mBeams">4.5</a> and <a
+href="#fig:watermarkTradeoff1.3bBeams" data-reference-type="ref"
+data-reference="fig:watermarkTradeoff1.3bBeams">4.7</a> show that
+different decoding methods impact PPL values as a proxy for the
+generated text’s quality while the correlation between z-score and the
+remaining control variables remains intact. These figures also show that
+different sizes and decoding techniques of the generator model do not
+impact the watermark signal’s strength. The generated texts differ
+systematically only in their PPL values. In this context, absolute PPL
+values carry no meaning. Only their relative change between experiments
+indicates an impact on text quality by the watermark scheme. As such
+only the larger generator-oracle model pair, i.e., OPT-1.3b and
+OPT-2.7b, is considered from here on.</p>
+<p><span id="fig:watermarkTradeoff125m"
+data-label="fig:watermarkTradeoff125m"></span> <img
+src="assets/render-10.svg" alt="image" /></p>
+<p><span id="fig:watermarkTradeoff125mBeams"
+data-label="fig:watermarkTradeoff125mBeams"></span> <img
+src="assets/render-11.svg" alt="image" /></p>
+<p><span id="fig:watermarkTradeoff1.3b"
+data-label="fig:watermarkTradeoff1.3b"></span> <img
+src="assets/render-12.svg" alt="image" /></p>
+<p><span id="fig:watermarkTradeoff1.3bBeams"
+data-label="fig:watermarkTradeoff1.3bBeams"></span> <img
+src="assets/render-13.svg" alt="image" /></p>
+<p>The z-score measures how many actual green list tokens occurred
+versus how many are expected. As a single token has a higher relative
+impact if few tokens have been observed in total, this measure is
+expected to gain utility with an increasing number of generated tokens.
+This assumption is validated in figures <a href="#fig:scoresDelta2"
+data-reference-type="ref" data-reference="fig:scoresDelta2">4.8a</a> for
+various <span class="math inline">\(\gamma\)</span> levels at a fixed
+green list bias of <span class="math inline">\(\delta = 2\)</span> and
+<a href="#fig:scoresGamma05" data-reference-type="ref"
+data-reference="fig:scoresGamma05">4.8b</a> for a fixed green list size
+of <span class="math inline">\(\gamma = 0.5\)</span> and <span
+class="math inline">\(\delta\)</span> levels between 1 and 10. The
+figures show continually computed z-scores for every new token that is
+generated. The pictured values are the average of all 500 generations
+for each configuration. After the first 10 tokens, the graphs for all
+configurations are steady with an upwards slope and a negative second
+derivative. As with the final z-scores after 200 generated tokens, the
+slope of an experiment’s z-score plot is positively correlated with
+<span class="math inline">\(\delta\)</span> and negatively correlated
+with <span class="math inline">\(\gamma\)</span>.</p>
+<p><span id="fig:scoresDelta2" data-label="fig:scoresDelta2"></span>
+<span id="fig:scoresGamma05" data-label="fig:scoresGamma05"></span>
+<span id="fig:scores" data-label="fig:scores"></span> <img
+src="assets/render-14.svg" alt="image" /></p>
+<p>The classification decision of the watermarking scheme depends on a
+threshold <span class="math inline">\(\tau\)</span>. If a text’s z-score
+exceeds this threshold it is classified as machine-generated and as
+human-generated otherwise. A high classification threshold indicates
+high precision, i.e., a low false positive rate. Such a threshold would
+also dismiss many actual positives as human-generated, hence leading to
+a high false negative rate and low recall. The results from the
+experiments show a negative relationship between classification
+threshold and recall. As actual negative texts consistently exhibit
+z-scores close to 0, the theoretical positive correlation between
+threshold and precision cannot be observed for <span
+class="math inline">\(\tau \in \{1,2,4\}\)</span>. Exemplary average
+z-scores for multinomial sampling, a <span
+class="math inline">\(\delta\)</span> of <span
+class="math inline">\(2\)</span>, and a <span
+class="math inline">\(\gamma\)</span> of <span
+class="math inline">\(0.5\)</span> at text length between 20 and 200
+token are summarized in table <a href="#tab:watermarkConfidence"
+data-reference-type="ref"
+data-reference="tab:watermarkConfidence">4.9</a>. The TNR and FPR values
+are omitted as the former is always <span
+class="math inline">\(100\%\)</span> and the latter <span
+class="math inline">\(0\%\)</span>. Additional samples for the possible
+classification outcomes false negative, true positive, and true negative
+are given in table <a href="#tab:watermarkSamples"
+data-reference-type="ref"
+data-reference="tab:watermarkSamples">4.10</a>.</p>
+<p><span id="tab:watermarkConfidence"
+data-label="tab:watermarkConfidence"></span> <img
+src="assets/render-15.svg" alt="image" /></p>
+<p><span id="tab:watermarkSamples"
+data-label="tab:watermarkSamples"></span> <img
+src="assets/render-16.svg" alt="image" /></p>
+<p>The scheme’s watermark is sufficiently hard to detect by humans and
+machines. Given a sophisticated generator model, the decrease in text
+quality is measurable in terms of PPL with an oracle model but it is not
+obvious to humans. If a model’s output is always watermarked, then there
+is no non-watermarked benchmark and the watermark is undetectable by
+text quality alone. If the <span data-acronym-label="prng"
+data-acronym-form="singular+short">prng</span> and the usage of the
+general watermarking scheme are in the public domain, the seed can
+theoretically be retrieved by brute-force given enough watermarked text.
+This can be countered by adjusting the computation of the seed and by
+switching between different methods regularly.</p>
+<p>The watermark is detectable with true positive rates of <span
+class="math inline">\(97\%\)</span> at <span class="math inline">\(\tau
+= 2\)</span> for longer texts, <span
+class="math inline">\(92.5\%\)</span> for medium texts, and still <span
+class="math inline">\(70\%\)</span> for short sequences of only 20
+tokens. The detection is computationally efficient as showcased with a
+pure C implementation: <a href="https://github.com/jlswea/llama2.c"
+class="uri">https://github.com/jlswea/llama2.c</a>. The watermarking
+scheme is therefore complete.</p>
+<p>Kirchenbauer et al. <span class="citation"
+data-cites="kirchenbauer2023watermark"></span> show that the watermark
+is vulnerable to the paraphrase attack. Replacing <span
+class="math inline">\(30\%\)</span> of the watermarked token by a T5
+model <span class="citation" data-cites="raffel2023exploring"></span>
+yields a degradation of AUC-ROC from <span
+class="math inline">\(0.998\)</span> to <span
+class="math inline">\(0.954\)</span>. While this is significant it is
+also a costly operation in terms of computational complexity for the
+paraphrasing model as well as in terms of degradation of text quality.
+The scheme can be considered robust.</p>
+<h1 id="discussion">Discussion</h1>
+<p>The generation of text using language models as well as the detection
+of such texts is an established field in <span data-acronym-label="nlp"
+data-acronym-form="singular+short">nlp</span>. Purely statistical models
+generate the next token conditioned only on the previous <span
+class="math inline">\(n\)</span> tokens. This results in distinct
+observed probability distributions in the generated text. Algorithmic
+detectors can exploit such a characteristic difference between texts of
+human or language model origin. Proposed features include relative token
+frequencies in bag-of-words classifiers or ranks assigned by a detector
+language model. A detector can either be employed as a binary classifier
+where the classification label is assigned autonomously, or it can be
+used in support of human decision making by presenting its feature
+vector in an interpretable way.</p>
+<p>The current resurgence in text classification research occurs due to
+an exponential increase in the capabilities of language models as well
+as their general availability as <span data-acronym-label="saas"
+data-acronym-form="singular+short">saas</span>. Compared to classical
+language models, <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> base their generation on a
+much larger context and are trained on much larger corpora of data. This
+results in significant increases in the model’s expressiveness and hence
+a reduction in total variance distance between the model’s probability
+distribution and an assumed natural language baseline. As the total
+variation distance is a direct bound of theoretical detectability, the
+impossibility of post-hoc detection in general is conceivable. Recent
+post-hoc detectors are computationally complex algorithms with highly
+domain and model specific performance. Even under optimal conditions
+they are prone to high false positive rates. This can be explained by
+high variance in human-generated texts where an individual text’s
+distance to the average human baseline exceeds the distance to a typical
+machine-generated sample. Human-generated texts can vary in their
+observable probability distribution due to variations in the writer’s
+educational and personal background. High false positive rates are not
+acceptable for any use case of such detectors. A false accusation of
+academic fraud can materially impact a person’s curriculum vitae. Using
+a detector with high FPR for avoiding machine-generated texts in
+training data would reinforce a bias against non-conformal but still
+human creations. Differentiating text by any human from text by any
+machine might not be possible.</p>
+<p>Watermarking, as the foremost proactive method, aims to solve a
+subset of the problem. A positive classification implies authorship of
+one specific <span data-acronym-label="llm"
+data-acronym-form="singular+short">llm</span> instead of any language
+model. With this approach very low FPRs are possible and longer
+sequences are reliably detected. However, this comes at the cost of
+modifying the model’s predicted probabilities. Maintaining the quality
+of generated text is paramount as a watermark that significantly
+degrades the underlying model’s capabilities is eroding its own use
+case. Any incentive to use watermarked text with subpar quality will be
+reduced and thus, the need to mark it in the first place.</p>
+<p>Any watermark can be removed by a determined attacker. This is mainly
+done by paraphrasing the text so that enough watermarked tokens are
+removed or replaced. The current defense is to either keep the watermark
+a secret so that no attempts at removing it are committed, or to incur
+excessive cost in terms of required computational resources and time. A
+watermarked text generated by a sophisticated <span
+data-acronym-label="llm" data-acronym-form="singular+short">llm</span>
+will require a similar level of sophistication in a paraphrasing model
+as the text’s value is diminished otherwise. The secrecy defense is also
+possible if the watermark is applied only to high-entropy areas. This is
+due to the theoretical undetectability of the watermark given enough
+entropy proven by Christ et al. <span class="citation"
+data-cites="christ2023undetectable"></span>. The watermark’s robustness
+to perturbations and detection from short sequences of tokens remains a
+key challenge.</p>
+<h1 id="conclusion">Conclusion</h1>
+<p>As with many significant technological developments, the current leap
+in language model performance presents opportunities for many valid
+applications but also for malicious use. The automated detection of
+machine-generated text is an important prerequisite for the safe
+adoption of artificial intelligence. Currently available detection
+methods are restricted to specific use cases and do not provide bounds
+for important metrics like precision and false positive rates. The
+generating capabilities of <span data-acronym-label="llm"
+data-acronym-form="plural+short">llms</span> seem to be comfortably
+ahead of any detecting adversary at the moment. To avoid adverse effects
+of automated text generation from materializing, model owners should
+take action as watermarking appears to be the only practical option for
+tracking a text’s provenance. The owners should further work an a
+standardized watermarking mechanism that is available as a single
+endpoint to consumers and covers most of the available models. Without a
+move to standardization, the landscape of available detectors will
+remain patchy and volatile and the widespread adoption of <span
+data-acronym-label="llm" data-acronym-form="plural+short">llms</span>
+will require vigilance and caution by all parties involved.</p>
+<h2 class="unnumbered" id="glossary">Glossary</h2>
+<div class="acronym">
+<p>[LLM]<span>Large Language Model</span> [OPT]<span>Open Pre-trained
+Transformer</span> [C4]<span>colossal, cleaned version of Common Crawl‘s
+web crawl</span> [PRNG]<span>Pseudo Random Number Generator</span>
+[ROC]<span>Receiver Operating Characteristics</span>
+[API]<span>Application Programming Interface</span> [NLP]<span>Natural
+Language Processing</span> [SaaS]<span>Software as a Service</span>
+[GUI]<span>Graphical User Interface</span> [AWT]<span>Adversarial
+Watermarking Transformer</span> [ReLU]<span>Rectified Linear Unit</span>
+[FFN]<span>Feed-Forward Network</span> [CLI]<span>Command Line
+Interface</span></p>
+</div>
+</body>
+</html>

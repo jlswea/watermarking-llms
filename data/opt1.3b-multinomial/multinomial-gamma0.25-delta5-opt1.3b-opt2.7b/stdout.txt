@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.25, green_list_bias=5.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    The latest carnation of the Catholic Athletic ...  ...        669
+1    View 14355 Morris Dido Rd in a larger map\nA c...  ...        266
+2    NEW YORk (AFP) - Fleetwood Mac, the veteran ro...  ...        277
+3    The songstress stunned in a plunging white gow...  ...        175
+4    Tuesday November 6, 2018 12:18 PM\nJean Adams ...  ...        382
+..                                                 ...  ...        ...
+494  The Violence Against Women Act (VAWA) is still...  ...        842
+495  press release\nRome — Number of people needing...  ...        553
+496  Still in love! Johnny Depp was caught giving f...  ...        198
+497  RIVERSIDE: Transgender and religious rights at...  ...        531
+498  Windows boss Steven Sinofsky has pierced his v...  ...        685
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               20.8845       20.8357
+No                -0.352988     11.2528

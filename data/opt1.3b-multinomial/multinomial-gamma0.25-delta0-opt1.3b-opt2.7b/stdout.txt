@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.25, green_list_bias=0.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Empty\nSony Pictures Television's heads of com...  ...        120
+1    JERUSALEM (JTA) — A majority of Americans beli...  ...        228
+2    BRISTOL, R.I. (AP) - U.S. Veterans Affairs Sec...  ...        202
+3    NEW DELHI, June 18 Indian tennis federation is...  ...        358
+4    Paul Fishman, the US attorney in Newark, New J...  ...        488
+..                                                 ...  ...        ...
+495  Most analysts continue to mouth the consensus ...  ...        309
+496  WASHINGTON (AP) — Eying the multiethnic troupe...  ...        365
+497  The Thai Embassy clarified yesterday that visa...  ...        142
+498  Shares\n, NAIROBI, Kenya, Jan 30 – The Interna...  ...         20
+499  It is a brave political gesture for a British ...  ...       1843
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes               -0.379702     11.0294
+No                -0.307432     11.0013

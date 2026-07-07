@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=1.0, decoding_strategy='beam', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    WASHINGTON (WATE) – McCain Foods USA, Inc. ann...  ...        380
+1    Australian firms appear unprepared for doing b...  ...        538
+2    The Le Grand Palais in Paris has an ehibition ...  ...        300
+3    NEW YORK (The Deal) -- Private equity-backed S...  ...        248
+4    UK ISP Bogons has purchased a Cold War nuclear...  ...        175
+..                                                 ...  ...        ...
+493  James Martin/CNET\nWe still don't know when AT...  ...        621
+494  Owings Mills-based Medifast Inc. said Friday t...  ...        128
+495  THE women of this Northwest city might -- just...  ...        906
+496  David Beckham reportedly wants to buy the Asto...  ...         49
+497  Symantec claims to have found evidence that a ...  ...        344
+
+[498 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                3.79718      5.85528
+No                -0.359194     5.65118

@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.5, green_list_bias=1.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    WELLINGTON (REUTERS) - New Zealand's governmen...  ...        285
+1    The parents of Alex Grant, the Boston College ...  ...        597
+2    Beijing: China and the United States will hold...  ...        300
+3    PARIS (Reuters) - No one emerges victorious fr...  ...        498
+4    When was the last time you've heard an NFL qua...  ...        162
+..                                                 ...  ...        ...
+495  SAN DIEGO — After stumbling to a 1-3 start, in...  ...        809
+496  Nearly all the 54 Republican U.S. senators wil...  ...        767
+497  letters\nYour 'Code of Practice faces fipedant...  ...         23
+498  Roberto Martínez is fooling no one with his at...  ...        120
+499  MOBILE, Alabama -- A strong cold front moving ...  ...        271
+
+[500 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                4.26979      11.4886
+No                -0.171864     11.0581

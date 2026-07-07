@@ -1,0 +1,22 @@
+Config loaded from file: Namespace(experiment=['compare'], verbosity=0, device='cuda', sample_size=500, random_sample=None, model='facebook/opt-1.3b', oracle_model='facebook/opt-2.7b', in_data='./realnews-sample.jsonl', out_data='./archive.jsonl', green_list_size=0.25, green_list_bias=2.0, decoding_strategy='multinomial', completion_size=200, num_beams=4, num_token_preview=75, from_config=True, config_file='config.ini')
+                                                prompt  ... len_prompt
+0    Please enable Javascript to watch this video\n...  ...        118
+1    As of December 2017, more than 4.6 million Ari...  ...        573
+2    Citigroup, Inc. (NYSE:C) Business Update Call ...  ...       1843
+3    I just received a flier from a major doughnut ...  ...        489
+4    It’s been an incredibly busy year for ska-punk...  ...        923
+..                                                 ...  ...        ...
+494  Related Coverage Local groups plan National Ni...  ...        366
+495  WASHINGTON--In the wake of hundreds of grave d...  ...        425
+496  Tim Gunn says this will be a fabulous season f...  ...        443
+497  GREEN BAY, Wis. — Inside linebacker A.J. Hawk ...  ...         72
+498  An apparently deranged Bronx man licked the bl...  ...        373
+
+[499 rows x 15 columns]
+============================================================
+Summary of 500 samples: 
+
+Watermark      Mean Z score    Mean PPL
+-----------  --------------  ----------
+Yes                9.76754      12.922
+No                -0.304391     11.1706
